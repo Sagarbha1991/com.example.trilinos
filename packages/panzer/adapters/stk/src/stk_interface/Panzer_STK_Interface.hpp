@@ -51,7 +51,7 @@
 #include <stk_mesh/base/BulkData.hpp>
 #include <stk_mesh/base/Field.hpp>
 #include <stk_mesh/base/FieldBase.hpp>
-#include <stk_mesh/base/FEMMetaData.hpp>
+#include <stk_mesh/base/MetaData.hpp>
 #include <stk_mesh/base/CoordinateSystems.hpp>
 
 #include <Shards_CellTopology.hpp>
@@ -290,7 +290,7 @@ public:
    //////////////////////////////////////////
  
    Teuchos::RCP<stk::mesh::BulkData> getBulkData() const { return bulkData_; }
-   Teuchos::RCP<stk::mesh::FEMMetaData> getMetaData() const { return metaData_; }
+   Teuchos::RCP<stk::mesh::MetaData> getMetaData() const { return metaData_; }
 
    bool isWritable() const;
 
@@ -733,7 +733,7 @@ protected:
 
    std::vector<Teuchos::RCP<const PeriodicBC_MatcherBase> > periodicBCs_;
 
-   Teuchos::RCP<stk::mesh::FEMMetaData> metaData_;
+   Teuchos::RCP<stk::mesh::MetaData> metaData_;
    Teuchos::RCP<stk::mesh::BulkData> bulkData_;
 
    std::map<std::string, stk::mesh::Part*> elementBlocks_;   // Element blocks

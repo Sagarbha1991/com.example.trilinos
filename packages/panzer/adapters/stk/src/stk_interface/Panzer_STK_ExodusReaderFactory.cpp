@@ -105,8 +105,8 @@ Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildUncommitedMesh(stk::Pa
    // immediately setup lower case usage
    mesh->setUseLowerCaseForIO(useLowerCase_);
 
-   RCP<stk::mesh::FEMMetaData> femMetaData = mesh->getMetaData();
-   stk::mesh::MetaData & metaData = stk::mesh::FEMMetaData::get_meta_data(*femMetaData);
+   RCP<stk::mesh::MetaData> femMetaData = mesh->getMetaData();
+   stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*femMetaData);
 
    // read in meta data
    Ioss::Init::Initializer io;
@@ -151,7 +151,7 @@ void STK_ExodusReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk:
       mesh.initialize(parallelMach);
 
    // grab mesh data pointer to build the bulk data
-   stk::mesh::MetaData & metaData = stk::mesh::FEMMetaData::get_meta_data(*mesh.getMetaData());
+   stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*mesh.getMetaData());
    stk::io::MeshData * meshData = 
          const_cast<stk::io::MeshData *>(metaData.get_attribute<stk::io::MeshData>());
          // if const_cast is wrong ... why does it feel so right?
@@ -174,7 +174,7 @@ void STK_ExodusReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk:
        metaData.get_field<stk::mesh::Field<double, stk::mesh::Cartesian> >("coordinates");
 
      std::vector<stk::mesh::Bucket*> const all_node_buckets =
-       bulkData->buckets(stk::mesh::FEMMetaData::NODE_RANK);
+       bulkData->buckets(stk::mesh::MetaData::NODE_RANK);
 
      stk::mesh::Selector select_all_local = metaData.locally_owned_part() | metaData.globally_shared_part();
      std::vector<stk::mesh::Bucket*> my_node_buckets;
@@ -305,7 +305,7 @@ void STK_ExodusReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io
 {
    using Teuchos::RCP;
 
-   RCP<stk::mesh::FEMMetaData> femMetaData = mesh.getMetaData();
+   RCP<stk::mesh::MetaData> femMetaData = mesh.getMetaData();
 
    // here we use the Ioss interface because they don't add
    // "bonus" element blocks and its easier to determine
@@ -337,7 +337,7 @@ void STK_ExodusReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::Mes
 {
    using Teuchos::RCP;
 
-   RCP<stk::mesh::FEMMetaData> metaData = mesh.getMetaData();
+   RCP<stk::mesh::MetaData> metaData = mesh.getMetaData();
    const stk::mesh::PartVector & parts = metaData->get_parts();
 
    stk::mesh::PartVector::const_iterator partItr;
@@ -370,7 +370,7 @@ void STK_ExodusReaderFactory::registerNodesets(STK_Interface & mesh,stk::io::Mes
 {
    using Teuchos::RCP;
 
-   RCP<stk::mesh::FEMMetaData> metaData = mesh.getMetaData();
+   RCP<stk::mesh::MetaData> metaData = mesh.getMetaData();
    const stk::mesh::PartVector & parts = metaData->get_parts();
 
    stk::mesh::PartVector::const_iterator partItr;

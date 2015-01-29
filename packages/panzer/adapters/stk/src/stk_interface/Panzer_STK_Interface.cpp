@@ -95,7 +95,7 @@ const std::string STK_Interface::edgesString = "edges";
 STK_Interface::STK_Interface()
    : dimension_(0), initialized_(false), currentLocalId_(0), initialStateTime_(0.0), currentStateTime_(0.0), useFieldCoordinates_(false), useLowerCase_(false)
 {
-   metaData_ = rcp(new stk::mesh::FEMMetaData());
+   metaData_ = rcp(new stk::mesh::MetaData());
 }
 
 STK_Interface::STK_Interface(unsigned dim)
@@ -104,7 +104,7 @@ STK_Interface::STK_Interface(unsigned dim)
    std::vector<std::string> entity_rank_names = stk::mesh::entity_rank_names(dimension_);
    entity_rank_names.push_back("FAMILY_TREE");
 
-   metaData_ = rcp(new stk::mesh::FEMMetaData());
+   metaData_ = rcp(new stk::mesh::MetaData());
    metaData_->FEM_initialize(dimension_,entity_rank_names);
 
    initializeFromMetaData();
@@ -310,7 +310,7 @@ void STK_Interface::instantiateBulkData(stk::ParallelMachine parallelMach)
    if(mpiComm_==Teuchos::null)
       mpiComm_ = getSafeCommunicator(parallelMach);
 
-   bulkData_ = rcp(new stk::mesh::BulkData(stk::mesh::FEMMetaData::get_meta_data(*metaData_),*mpiComm_->getRawMpiComm()));
+   bulkData_ = rcp(new stk::mesh::BulkData(stk::mesh::MetaData::get_meta_data(*metaData_),*mpiComm_->getRawMpiComm()));
 }
 
 void STK_Interface::beginModification()
