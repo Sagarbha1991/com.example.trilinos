@@ -49,7 +49,7 @@
 
 #include "Panzer_DOFManagerFEI.hpp"
 
-#include <stk_mesh/base/FieldData.hpp>
+#include <stk_mesh/base/FieldBase.hpp>
 
 namespace panzer_stk_classic {
 

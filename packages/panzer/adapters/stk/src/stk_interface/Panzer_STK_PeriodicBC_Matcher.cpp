@@ -44,7 +44,7 @@
 
 #include <stk_mesh/base/GetEntities.hpp>
 #include <stk_mesh/base/GetBuckets.hpp>
-#include <stk_mesh/base/FieldData.hpp>
+#include <stk_mesh/base/FieldBase.hpp>
 
 #include "Epetra_Vector.h"
 #include "Epetra_MultiVector.h"
