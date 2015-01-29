@@ -109,7 +109,7 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk::Pa
 
    // read in meta data
    Ioss::Init::Initializer io;
-   stk::io::MeshData * meshData = new stk::io::MeshData;
+   stk::io::StkMeshIoBroker * meshData = new stk::io::StkMeshIoBroker;
    stk::io::create_input_mesh("pamgen", fileName_, parallelMach,
                                     *femMetaData, *meshData,useLowerCase_);
 
@@ -151,8 +151,8 @@ void STK_PamgenReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk:
 
    // grab mesh data pointer to build the bulk data
    stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*mesh.getMetaData());
-   stk::io::MeshData * meshData = 
-         const_cast<stk::io::MeshData *>(metaData.get_attribute<stk::io::MeshData>());
+   stk::io::StkMeshIoBroker * meshData = 
+         const_cast<stk::io::StkMeshIoBroker *>(metaData.get_attribute<stk::io::StkMeshIoBroker>());
          // if const_cast is wrong ... why does it feel so right?
          // I believe this is safe since we are basically hiding this object under the covers
          // until the mesh construction can be completed...below I cleanup the object myself.
@@ -241,7 +241,7 @@ Teuchos::RCP<const Teuchos::ParameterList> STK_PamgenReaderFactory::getValidPara
    return validParams.getConst();
 }
 
-void STK_PamgenReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io::MeshData & meshData) const 
+void STK_PamgenReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const 
 {
    using Teuchos::RCP;
 
@@ -273,7 +273,7 @@ void buildSetNames(const SetType & setData,std::vector<std::string> & names)
    }
 }
 
-void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::MeshData & meshData) const
+void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
 {
    using Teuchos::RCP;
 
@@ -306,7 +306,7 @@ void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::Mes
    }
 }
 
-void STK_PamgenReaderFactory::registerNodesets(STK_Interface & mesh,stk::io::MeshData & meshData) const
+void STK_PamgenReaderFactory::registerNodesets(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
 {
    using Teuchos::RCP;
 

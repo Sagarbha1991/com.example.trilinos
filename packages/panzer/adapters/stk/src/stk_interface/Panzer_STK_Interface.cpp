@@ -428,7 +428,7 @@ void STK_Interface::writeToExodus(const std::string & filename)
       stk::ParallelMachine comm = *mpiComm_->getRawMpiComm();
 
       Ioss::Init::Initializer io;
-      stk::io::MeshData meshData;
+      stk::io::StkMeshIoBroker meshData;
       stk::io::create_output_mesh(filename, comm, *bulkData_, meshData,getUseLowerCaseForIO());
       stk::io::define_output_fields(meshData,*metaData_);
 
@@ -447,7 +447,7 @@ void STK_Interface::setupTransientExodusFile(const std::string & filename)
       stk::ParallelMachine comm = *mpiComm_->getRawMpiComm();
 
       Ioss::Init::Initializer io;
-      meshData_ = Teuchos::rcp(new stk::io::MeshData);
+      meshData_ = Teuchos::rcp(new stk::io::StkMeshIoBroker);
       stk::io::create_output_mesh(filename, comm, *bulkData_, *meshData_,getUseLowerCaseForIO());
       stk::io::define_output_fields(*meshData_,*metaData_);
    #else 
