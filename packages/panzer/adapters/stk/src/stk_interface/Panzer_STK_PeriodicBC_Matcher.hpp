@@ -50,7 +50,7 @@
 #include "Panzer_STK_config.hpp"
 #include "Panzer_STK_Interface.hpp"
 
-namespace panzer_stk_classic {
+namespace panzer_stk {
 
 /** These functions are utilities to support the implementation of
   * peridic boundary conditions.  They should not be used by externally
