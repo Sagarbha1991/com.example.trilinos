@@ -53,7 +53,7 @@
 #include <stk_mesh/base/Selector.hpp>
 #include <stk_mesh/base/GetEntities.hpp>
 #include <stk_mesh/base/GetBuckets.hpp>
-#include <stk_mesh/fem/CreateAdjacentEntities.hpp>
+#include <stk_mesh/base/CreateAdjacentEntities.hpp>
 
 #include "Shards_CellTopology.hpp"
 #include "Intrepid_FunctionSpaceTools.hpp"
