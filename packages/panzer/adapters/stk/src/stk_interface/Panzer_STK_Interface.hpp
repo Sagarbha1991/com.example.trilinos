@@ -62,7 +62,7 @@
 #include <boost/unordered_map.hpp>
 
 #ifdef HAVE_IOSS
-#include <stk_io/MeshReadWriteUtils.hpp>
+#include <stk_io/StkMeshIoBroker.hpp>
 #endif
 
 namespace panzer_stk {

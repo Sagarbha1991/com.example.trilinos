@@ -50,7 +50,7 @@
 
 #ifdef HAVE_IOSS
 
-#include <stk_io/MeshReadWriteUtils.hpp>
+#include <stk_io/StkMeshIoBroker.hpp>
 
 namespace panzer_stk {
 
