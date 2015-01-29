@@ -104,8 +104,8 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk_cla
    // immediately setup lower case usage
    mesh->setUseLowerCaseForIO(useLowerCase_);
 
-   RCP<stk_classic::mesh::fem::FEMMetaData> femMetaData = mesh->getMetaData();
-   stk_classic::mesh::MetaData & metaData = stk_classic::mesh::fem::FEMMetaData::get_meta_data(*femMetaData);
+   RCP<stk_classic::mesh::FEMMetaData> femMetaData = mesh->getMetaData();
+   stk_classic::mesh::MetaData & metaData = stk_classic::mesh::FEMMetaData::get_meta_data(*femMetaData);
 
    // read in meta data
    Ioss::Init::Initializer io;
@@ -115,7 +115,7 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk_cla
 
    // add in "FAMILY_TREE" entity for doing refinement
    std::size_t dimension = femMetaData->spatial_dimension();
-   std::vector<std::string> entity_rank_names = stk_classic::mesh::fem::entity_rank_names(dimension);
+   std::vector<std::string> entity_rank_names = stk_classic::mesh::entity_rank_names(dimension);
    entity_rank_names.push_back("FAMILY_TREE");
    femMetaData->set_entity_rank_names(entity_rank_names);
 
@@ -150,7 +150,7 @@ void STK_PamgenReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk_
       mesh.initialize(parallelMach);
 
    // grab mesh data pointer to build the bulk data
-   stk_classic::mesh::MetaData & metaData = stk_classic::mesh::fem::FEMMetaData::get_meta_data(*mesh.getMetaData());
+   stk_classic::mesh::MetaData & metaData = stk_classic::mesh::FEMMetaData::get_meta_data(*mesh.getMetaData());
    stk_classic::io::MeshData * meshData = 
          const_cast<stk_classic::io::MeshData *>(metaData.get_attribute<stk_classic::io::MeshData>());
          // if const_cast is wrong ... why does it feel so right?
@@ -245,7 +245,7 @@ void STK_PamgenReaderFactory::registerElementBlocks(STK_Interface & mesh,stk_cla
 {
    using Teuchos::RCP;
 
-   RCP<stk_classic::mesh::fem::FEMMetaData> femMetaData = mesh.getMetaData();
+   RCP<stk_classic::mesh::FEMMetaData> femMetaData = mesh.getMetaData();
 
    // here we use the Ioss interface because they don't add
    // "bonus" element blocks and its easier to determine
@@ -277,14 +277,14 @@ void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk_classic:
 {
    using Teuchos::RCP;
 
-   RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh.getMetaData();
+   RCP<stk_classic::mesh::FEMMetaData> metaData = mesh.getMetaData();
    const stk_classic::mesh::PartVector & parts = metaData->get_parts();
 
    stk_classic::mesh::PartVector::const_iterator partItr;
    for(partItr=parts.begin();partItr!=parts.end();++partItr) {
       const stk_classic::mesh::Part * part = *partItr;
       const stk_classic::mesh::PartVector & subsets = part->subsets();
-      // const CellTopologyData * ct = stk_classic::mesh::fem::get_cell_topology(*part).getCellTopologyData();
+      // const CellTopologyData * ct = stk_classic::mesh::get_cell_topology(*part).getCellTopologyData();
       const CellTopologyData * ct = metaData->get_cell_topology(*part).getCellTopologyData();
 
       // if a side part ==> this is a sideset: now storage is recursive
@@ -296,7 +296,7 @@ void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk_classic:
 
          // grab cell topology and name of subset part
          const stk_classic::mesh::Part * ss_part = subsets[0];
-         // const CellTopologyData * ss_ct = stk_classic::mesh::fem::get_cell_topology(*ss_part).getCellTopologyData();
+         // const CellTopologyData * ss_ct = stk_classic::mesh::get_cell_topology(*ss_part).getCellTopologyData();
          const CellTopologyData * ss_ct = metaData->get_cell_topology(*ss_part).getCellTopologyData();
  
          // only add subset parts that have no topology
@@ -310,7 +310,7 @@ void STK_PamgenReaderFactory::registerNodesets(STK_Interface & mesh,stk_classic:
 {
    using Teuchos::RCP;
 
-   RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh.getMetaData();
+   RCP<stk_classic::mesh::FEMMetaData> metaData = mesh.getMetaData();
    const stk_classic::mesh::PartVector & parts = metaData->get_parts();
 
    stk_classic::mesh::PartVector::const_iterator partItr;

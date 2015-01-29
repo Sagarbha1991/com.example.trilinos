@@ -95,16 +95,16 @@ const std::string STK_Interface::edgesString = "edges";
 STK_Interface::STK_Interface()
    : dimension_(0), initialized_(false), currentLocalId_(0), initialStateTime_(0.0), currentStateTime_(0.0), useFieldCoordinates_(false), useLowerCase_(false)
 {
-   metaData_ = rcp(new stk_classic::mesh::fem::FEMMetaData());
+   metaData_ = rcp(new stk_classic::mesh::FEMMetaData());
 }
 
 STK_Interface::STK_Interface(unsigned dim)
    : dimension_(dim), initialized_(false), currentLocalId_(0), useFieldCoordinates_(false), useLowerCase_(false)
 {
-   std::vector<std::string> entity_rank_names = stk_classic::mesh::fem::entity_rank_names(dimension_);
+   std::vector<std::string> entity_rank_names = stk_classic::mesh::entity_rank_names(dimension_);
    entity_rank_names.push_back("FAMILY_TREE");
 
-   metaData_ = rcp(new stk_classic::mesh::fem::FEMMetaData());
+   metaData_ = rcp(new stk_classic::mesh::FEMMetaData());
    metaData_->FEM_initialize(dimension_,entity_rank_names);
 
    initializeFromMetaData();
@@ -117,7 +117,7 @@ void STK_Interface::addSideset(const std::string & name,const CellTopologyData *
 
    stk_classic::mesh::Part * sideset = metaData_->get_part(name);
    if(sideset==NULL)
-      sideset = &metaData_->declare_part(name,stk_classic::mesh::fem::CellTopology(ctData)); 
+      sideset = &metaData_->declare_part(name,stk_classic::mesh::CellTopology(ctData)); 
    sidesets_.insert(std::make_pair(name,sideset));
 }
 
@@ -129,7 +129,7 @@ void STK_Interface::addNodeset(const std::string & name)
    stk_classic::mesh::Part * nodeset = metaData_->get_part(name);
    if(nodeset==NULL) {
       const CellTopologyData * ctData = shards::getCellTopologyData<shards::Node>();
-      nodeset = &metaData_->declare_part(name,stk_classic::mesh::fem::CellTopology(ctData)); 
+      nodeset = &metaData_->declare_part(name,stk_classic::mesh::CellTopology(ctData)); 
    }
    nodesets_.insert(std::make_pair(name,nodeset));
 }
@@ -310,7 +310,7 @@ void STK_Interface::instantiateBulkData(stk_classic::ParallelMachine parallelMac
    if(mpiComm_==Teuchos::null)
       mpiComm_ = getSafeCommunicator(parallelMach);
 
-   bulkData_ = rcp(new stk_classic::mesh::BulkData(stk_classic::mesh::fem::FEMMetaData::get_meta_data(*metaData_),*mpiComm_->getRawMpiComm()));
+   bulkData_ = rcp(new stk_classic::mesh::BulkData(stk_classic::mesh::FEMMetaData::get_meta_data(*metaData_),*mpiComm_->getRawMpiComm()));
 }
 
 void STK_Interface::beginModification()
@@ -874,7 +874,7 @@ void STK_Interface::addElementBlock(const std::string & name,const CellTopologyD
 
    stk_classic::mesh::Part * block = metaData_->get_part(name);
    if(block==0) {
-      block = &metaData_->declare_part(name,stk_classic::mesh::fem::CellTopology(ctData));
+      block = &metaData_->declare_part(name,stk_classic::mesh::CellTopology(ctData));
    }
 
    // construct cell topology object for this block

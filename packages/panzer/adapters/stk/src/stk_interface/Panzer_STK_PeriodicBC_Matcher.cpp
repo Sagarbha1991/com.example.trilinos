@@ -122,7 +122,7 @@ Teuchos::RCP<std::vector<std::size_t> >
 getLocalSideIds(const STK_Interface & mesh,
                 const std::string & sideName, const std::string type_)
 {
-   Teuchos::RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh.getMetaData();
+   Teuchos::RCP<stk_classic::mesh::FEMMetaData> metaData = mesh.getMetaData();
    Teuchos::RCP<stk_classic::mesh::BulkData> bulkData = mesh.getBulkData();
 
    // grab nodes owned by requested side
@@ -173,7 +173,7 @@ getLocalSideIdsAndCoords(const STK_Interface & mesh,
 {
    unsigned physicalDim = mesh.getDimension();
    
-   Teuchos::RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh.getMetaData();
+   Teuchos::RCP<stk_classic::mesh::FEMMetaData> metaData = mesh.getMetaData();
    Teuchos::RCP<stk_classic::mesh::BulkData> bulkData = mesh.getBulkData();
 
    // grab nodes owned by requested side

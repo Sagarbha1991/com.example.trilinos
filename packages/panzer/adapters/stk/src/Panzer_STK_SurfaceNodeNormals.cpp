@@ -71,7 +71,7 @@ namespace panzer_stk_classic {
   {    
     using Teuchos::RCP;
     
-    RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh->getMetaData();
+    RCP<stk_classic::mesh::FEMMetaData> metaData = mesh->getMetaData();
     RCP<stk_classic::mesh::BulkData> bulkData = mesh->getBulkData();
 
     // Grab all nodes for a surface including ghosted to get correct contributions to normal average    
@@ -220,7 +220,7 @@ namespace panzer_stk_classic {
     
     computeSidesetNodeNormals(nodeEntityIdToNormals,mesh,sidesetName,elementBlockName,out,pout);
 
-    RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh->getMetaData();
+    RCP<stk_classic::mesh::FEMMetaData> metaData = mesh->getMetaData();
     RCP<stk_classic::mesh::BulkData> bulkData = mesh->getBulkData();
 
     // Grab all nodes for a surface including ghosted to get correct contributions to normal average    

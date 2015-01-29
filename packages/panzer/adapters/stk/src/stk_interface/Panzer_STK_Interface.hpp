@@ -290,7 +290,7 @@ public:
    //////////////////////////////////////////
  
    Teuchos::RCP<stk_classic::mesh::BulkData> getBulkData() const { return bulkData_; }
-   Teuchos::RCP<stk_classic::mesh::fem::FEMMetaData> getMetaData() const { return metaData_; }
+   Teuchos::RCP<stk_classic::mesh::FEMMetaData> getMetaData() const { return metaData_; }
 
    bool isWritable() const;
 
@@ -534,7 +534,7 @@ public:
    template <typename ArrayT>
    void getElementVertices(const std::vector<stk_classic::mesh::Entity*> & elements,const std::string & eBlock, ArrayT & vertices) const;
 
-   // const stk_classic::mesh::fem::FEMInterface & getFEMInterface() const 
+   // const stk_classic::mesh::FEMInterface & getFEMInterface() const 
    // { return *femPtr_; }
 
    stk_classic::mesh::EntityRank getElementRank() const { return metaData_->element_rank(); }
@@ -733,7 +733,7 @@ protected:
 
    std::vector<Teuchos::RCP<const PeriodicBC_MatcherBase> > periodicBCs_;
 
-   Teuchos::RCP<stk_classic::mesh::fem::FEMMetaData> metaData_;
+   Teuchos::RCP<stk_classic::mesh::FEMMetaData> metaData_;
    Teuchos::RCP<stk_classic::mesh::BulkData> bulkData_;
 
    std::map<std::string, stk_classic::mesh::Part*> elementBlocks_;   // Element blocks
@@ -995,7 +995,7 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk_classic:
 
    // get *master* cell toplogy...(belongs to first element)
    unsigned masterVertexCount 
-      = stk_classic::mesh::fem::get_cell_topology(elements[0]->bucket()).getCellTopologyData()->vertex_count;
+      = stk_classic::mesh::get_cell_topology(elements[0]->bucket()).getCellTopologyData()->vertex_count;
 
    // allocate space
    vertices.resize(elements.size(),masterVertexCount,getDimension());
@@ -1007,7 +1007,7 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk_classic:
       TEUCHOS_ASSERT(element!=0);
  
       unsigned vertexCount 
-         = stk_classic::mesh::fem::get_cell_topology(element->bucket()).getCellTopologyData()->vertex_count;
+         = stk_classic::mesh::get_cell_topology(element->bucket()).getCellTopologyData()->vertex_count;
       TEUCHOS_TEST_FOR_EXCEPTION(vertexCount!=masterVertexCount,std::runtime_error,
                          "In call to STK_Interface::getElementVertices all elements "
                          "must have the same vertex count!");
@@ -1040,7 +1040,7 @@ void STK_Interface::getElementVertices_FromField(const std::vector<stk_classic::
 
    // get *master* cell toplogy...(belongs to first element)
    unsigned masterVertexCount 
-      = stk_classic::mesh::fem::get_cell_topology(elements[0]->bucket()).getCellTopologyData()->vertex_count;
+      = stk_classic::mesh::get_cell_topology(elements[0]->bucket()).getCellTopologyData()->vertex_count;
 
    // allocate space
    vertices.resize(elements.size(),masterVertexCount,getDimension());
