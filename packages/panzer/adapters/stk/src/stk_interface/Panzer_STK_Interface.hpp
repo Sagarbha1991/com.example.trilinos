@@ -399,12 +399,12 @@ public:
    /** Get an elements global index
      */
    inline stk::mesh::EntityId elementGlobalId(std::size_t lid) const
-   { return (*orderedElementVector_)[lid]->identifier(); }
+   { return bulkData_->identifier((*orderedElementVector_)[lid]); }
 
    /** Get an elements global index
      */
    inline stk::mesh::EntityId elementGlobalId(stk::mesh::Entity elmt) const
-   { return elmt->identifier(); }
+   { return bulkData_->identifier(elmt); }
 
    /**  Get the containing block ID of this element.
      */ 
@@ -537,11 +537,11 @@ public:
    // const stk::mesh::FEMInterface & getFEMInterface() const 
    // { return *femPtr_; }
 
-   stk::mesh::EntityRank getElementRank() const { return metaData_->element_rank(); }
+   stk::mesh::EntityRank getElementRank() const { return stk::topology::ELEMENT_RANK; }
    stk::mesh::EntityRank getSideRank() const { return metaData_->side_rank(); }
-   stk::mesh::EntityRank getFaceRank() const { return metaData_->face_rank(); }
-   stk::mesh::EntityRank getEdgeRank() const { return metaData_->edge_rank(); }
-   stk::mesh::EntityRank getNodeRank() const { return metaData_->node_rank(); }
+   stk::mesh::EntityRank getFaceRank() const { return stk::topology::FACE_RANK; }
+   stk::mesh::EntityRank getEdgeRank() const { return stk::topology::EDGE_RANK; }
+   stk::mesh::EntityRank getNodeRank() const { return stk::topology::NODE_RANK; }
 
    /** Build fields and parts from the meta data
      */
@@ -776,7 +776,7 @@ protected:
 
 #ifdef HAVE_IOSS
    // I/O support
-   Teuchos::RCP<stk::io::MeshData> meshData_;
+  Teuchos::RCP<stk::io::StkMeshIoBroker> meshData_;
 #endif
 
    // uses lazy evaluation
@@ -831,11 +831,12 @@ void STK_Interface::setSolutionFieldData(const std::string & fieldName,const std
       stk::mesh::Entity element = elements[localId];
 
       // loop over nodes set solution values
-      stk::mesh::PairIterRelation relations = element->relations(getNodeRank());
-      for(std::size_t i=0;i<relations.size();++i) {
-         stk::mesh::Entity node = relations[i].entity();
+      const size_t num_nodes = bulkData_->num_nodes(element);
+      stk::mesh::Entity const* nodes = bulkData_->begin_nodes(element);
+      for(std::size_t i=0; i<num_nodes; ++i) {
+         stk::mesh::Entity node = nodes[i];
 
-         double * solnData = stk::mesh::field_data(*field,*node);
+         double * solnData = stk::mesh::field_data(*field,node);
          // TEUCHOS_ASSERT(solnData!=0); // only needed if blockId is not specified
          solnData[0] = scaleValue*solutionValues(cell,i);
       }
@@ -858,12 +859,13 @@ void STK_Interface::setDispFieldData(const std::string & fieldName,const std::st
       stk::mesh::Entity element = elements[localId];
 
       // loop over nodes set solution values
-      stk::mesh::PairIterRelation relations = element->relations(getNodeRank());
-      for(std::size_t i=0;i<relations.size();++i) {
-         stk::mesh::Entity node = relations[i].entity();
+      const size_t num_nodes = bulkData_->num_nodes(element);
+      stk::mesh::Entity const* nodes = bulkData_->begin_nodes(element);
+      for(std::size_t i=0; i<num_nodes; ++i) {
+         stk::mesh::Entity node = nodes[i];
 
-         double * solnData = stk::mesh::field_data(*field,*node);
-         double * coordData = stk::mesh::field_data(coord_field,*node);
+         double * solnData = stk::mesh::field_data(*field,node);
+         double * coordData = stk::mesh::field_data(coord_field,node);
          // TEUCHOS_ASSERT(solnData!=0); // only needed if blockId is not specified
          solnData[0] = dispValues(cell,i)-coordData[axis];
       }
@@ -876,7 +878,7 @@ void STK_Interface::getSolutionFieldData(const std::string & fieldName,const std
 {
    const std::vector<stk::mesh::Entity> & elements = *(this->getElementsOrderedByLID());
 
-   solutionValues.resize(localElementIds.size(),elements[localElementIds[0]]->relations(getNodeRank()).size());
+   solutionValues.resize(localElementIds.size(), bulkData_->num_nodes(elements[localElementIds[0]]));
 
    SolutionFieldType * field = this->getSolutionField(fieldName,blockId);
 
@@ -885,11 +887,12 @@ void STK_Interface::getSolutionFieldData(const std::string & fieldName,const std
       stk::mesh::Entity element = elements[localId];
 
       // loop over nodes set solution values
-      stk::mesh::PairIterRelation relations = element->relations(getNodeRank());
-      for(std::size_t i=0;i<relations.size();++i) {
-         stk::mesh::Entity node = relations[i].entity();
+      const size_t num_nodes = bulkData_->num_nodes(element);
+      stk::mesh::Entity const* nodes = bulkData_->begin_nodes(element);
+      for(std::size_t i=0; i<num_nodes; ++i) {
+         stk::mesh::Entity node = nodes[i];
 
-         double * solnData = stk::mesh::field_data(*field,*node);
+         double * solnData = stk::mesh::field_data(*field,node);
          // TEUCHOS_ASSERT(solnData!=0); // only needed if blockId is not specified
          solutionValues(cell,i) = solnData[0]; 
       }
@@ -908,7 +911,7 @@ void STK_Interface::setCellFieldData(const std::string & fieldName,const std::st
       std::size_t localId = localElementIds[cell];
       stk::mesh::Entity element = elements[localId];
 
-      double * solnData = stk::mesh::field_data(*field,*element);
+      double * solnData = stk::mesh::field_data(*field,element);
       TEUCHOS_ASSERT(solnData!=0); // only needed if blockId is not specified
       solnData[0] = scaleValue*solutionValues[cell];
    }
@@ -995,7 +998,7 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk::mesh::E
 
    // get *master* cell toplogy...(belongs to first element)
    unsigned masterVertexCount 
-      = stk::mesh::get_cell_topology(elements[0]->bucket()).getCellTopologyData()->vertex_count;
+      = stk::mesh::get_cell_topology(bulkData_->bucket(elements[0]).topology()).getCellTopologyData()->vertex_count;
 
    // allocate space
    vertices.resize(elements.size(),masterVertexCount,getDimension());
@@ -1004,21 +1007,22 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk::mesh::E
    unsigned dim = getDimension();
    for(std::size_t cell=0;cell<elements.size();cell++) {
       stk::mesh::Entity element = elements[cell];
-      TEUCHOS_ASSERT(element!=0);
+      TEUCHOS_ASSERT(bulkData_->is_valid(element));
  
       unsigned vertexCount 
-         = stk::mesh::get_cell_topology(element->bucket()).getCellTopologyData()->vertex_count;
+        = stk::mesh::get_cell_topology(bulkData_->bucket(element).topology()).getCellTopologyData()->vertex_count;
       TEUCHOS_TEST_FOR_EXCEPTION(vertexCount!=masterVertexCount,std::runtime_error,
                          "In call to STK_Interface::getElementVertices all elements "
                          "must have the same vertex count!");
 
       // loop over all element nodes
-      stk::mesh::PairIterRelation nodes = element->relations(getNodeRank());
-      TEUCHOS_TEST_FOR_EXCEPTION(nodes.size()!=masterVertexCount,std::runtime_error,
+      const size_t num_nodes = bulkData_->num_nodes(element);
+      stk::mesh::Entity const* nodes = bulkData_->begin_nodes(element);
+      TEUCHOS_TEST_FOR_EXCEPTION(num_nodes!=masterVertexCount,std::runtime_error,
                          "In call to STK_Interface::getElementVertices cardinality of "
                          "element node relations must be the vertex count!");
-      for(std::size_t node=0;node<nodes.size();++node) {
-         const double * coord = getNodeCoordinates(nodes[node].entity()->identifier());
+      for(std::size_t node=0; node<num_nodes; ++node) {
+         const double * coord = getNodeCoordinates(bulkData_->identifier(nodes[node]));
 
          // set each dimension of the coordinate
          for(unsigned d=0;d<dim;d++)
@@ -1040,7 +1044,7 @@ void STK_Interface::getElementVertices_FromField(const std::vector<stk::mesh::En
 
    // get *master* cell toplogy...(belongs to first element)
    unsigned masterVertexCount 
-      = stk::mesh::get_cell_topology(elements[0]->bucket()).getCellTopologyData()->vertex_count;
+      = stk::mesh::get_cell_topology(bulkData_->bucket(elements[0]).topology()).getCellTopologyData()->vertex_count;
 
    // allocate space
    vertices.resize(elements.size(),masterVertexCount,getDimension());
@@ -1061,14 +1065,15 @@ void STK_Interface::getElementVertices_FromField(const std::vector<stk::mesh::En
       stk::mesh::Entity element = elements[cell];
 
       // loop over nodes set solution values
-      stk::mesh::PairIterRelation relations = element->relations(getNodeRank());
-      for(std::size_t i=0;i<relations.size();++i) {
-         stk::mesh::Entity node = relations[i].entity();
+      const size_t num_nodes = bulkData_->num_nodes(element);
+      stk::mesh::Entity const* nodes = bulkData_->begin_nodes(element);
+      for(std::size_t i=0; i<num_nodes; ++i) {
+         stk::mesh::Entity node = nodes[i];
 
-         const double * coord = getNodeCoordinates(node->identifier());
+         const double * coord = getNodeCoordinates(bulkData_->identifier(node));
 
          for(int d=0;d<getDimension();d++) {
-           double * solnData = stk::mesh::field_data(*fields[d],*node);
+           double * solnData = stk::mesh::field_data(*fields[d],node);
  
            // recall mesh field coordinates are stored as displacements
            // from the mesh coordinates, make sure to add them together
