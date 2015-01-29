@@ -361,6 +361,7 @@ void getSubcellElements(const panzer_stk::STK_Interface & mesh,
   stk::mesh::Part * blockPart = mesh.getElementBlockPart(blockId);
   stk::mesh::Part * ownedPart = mesh.getOwnedPart();
   stk::mesh::EntityRank elementRank = mesh.getElementRank();
+  stk::mesh::BulkData& bulkData = *mesh.getBulkData();
   
   // loop over each entitiy extracting elements and local entity ID that
   // are containted in specified block.
@@ -368,15 +369,16 @@ void getSubcellElements(const panzer_stk::STK_Interface & mesh,
   for(entityItr=entities.begin();entityItr!=entities.end();++entityItr) {
     stk::mesh::Entity entity = *entityItr;
     
-    stk::mesh::PairIterRelation relations = entity->relations(elementRank);
-
-    for(std::size_t e=0;e<relations.size();++e) {
-      stk::mesh::Entity element = relations[e].entity();
-      std::size_t entityId = relations[e].identifier();
+    const size_t num_rels = bulkData.num_elements(entity);
+    stk::mesh::Entity const* element_rels = bulkData.begin_elements(entity);
+    for(std::size_t e=0; e<num_rels; ++e) {
+      stk::mesh::Entity element = element_rels[e];
+      std::size_t entityId = bulkData.identifier(element);
 	
       // is this element in requested block
-      bool inBlock = element->bucket().member(*blockPart);
-      bool onProc = element->bucket().member(*ownedPart);
+      stk::mesh::Bucket const& bucket = bulkData.bucket(element);
+      bool inBlock = bucket.member(*blockPart);
+      bool onProc = bucket.member(*ownedPart);
       if(inBlock && onProc) {
         // add element and Side ID to output vectors
         elements.push_back(element);
@@ -396,22 +398,24 @@ void getUniversalSubcellElements(const panzer_stk::STK_Interface & mesh,
   stk::mesh::Part * blockPart = mesh.getElementBlockPart(blockId);
   stk::mesh::Part * universalPart = &mesh.getMetaData()->universal_part();
   stk::mesh::EntityRank elementRank = mesh.getElementRank();
-  
+  stk::mesh::BulkData& bulkData = *mesh.getBulkData();
+
   // loop over each entitiy extracting elements and local entity ID that
   // are containted in specified block.
   std::vector<stk::mesh::Entity>::const_iterator entityItr;
   for(entityItr=entities.begin();entityItr!=entities.end();++entityItr) {
     stk::mesh::Entity entity = *entityItr;
     
-    stk::mesh::PairIterRelation relations = entity->relations(elementRank);
-
-    for(std::size_t e=0;e<relations.size();++e) {
-      stk::mesh::Entity element = relations[e].entity();
-      std::size_t entityId = relations[e].identifier();
+    const size_t num_rels = bulkData.num_elements(entity);
+    stk::mesh::Entity const* element_rels = bulkData.begin_elements(entity);
+    for(std::size_t e=0; e<num_rels; ++e) {
+      stk::mesh::Entity element = element_rels[e];
+      std::size_t entityId = bulkData.identifier(element);
 	
       // is this element in requested block
-      bool inBlock = element->bucket().member(*blockPart);
-      bool onProc = element->bucket().member(*universalPart);
+      stk::mesh::Bucket const& bucket = bulkData.bucket(element);
+      bool inBlock = bucket.member(*blockPart);
+      bool onProc = bucket.member(*universalPart);
       if(inBlock && onProc) {
         // add element and Side ID to output vectors
         elements.push_back(element);
@@ -481,7 +485,8 @@ void getSideElements(const panzer_stk::STK_Interface & mesh,
   stk::mesh::Part * ownedPart = mesh.getOwnedPart();
   stk::mesh::Part * universalPart = &mesh.getMetaData()->universal_part();
   stk::mesh::EntityRank elementRank = mesh.getElementRank();
-  
+  stk::mesh::BulkData& bulkData = *mesh.getBulkData();
+
   // loop over each entitiy extracting elements and local entity ID that
   // are containted in specified block.
   std::vector<stk::mesh::Entity>::const_iterator sidesItr;
@@ -489,33 +494,35 @@ void getSideElements(const panzer_stk::STK_Interface & mesh,
     stk::mesh::Entity side = *sidesItr;
     
      // these are used below the loop to insert into the appropriate vectors
-    stk::mesh::Entity element_a=0,* element_b=0;
+    stk::mesh::Entity element_a = stk::mesh::Entity(), element_b = stk::mesh::Entity();
     std::size_t entityId_a=0, entityId_b=0;
 
-    stk::mesh::PairIterRelation relations = side->relations(elementRank);
-    for(std::size_t e=0;e<relations.size();++e) {
-      stk::mesh::Entity element = relations[e].entity();
-      std::size_t entityId = relations[e].identifier();
-	
+    const size_t num_rels = bulkData.num_elements(side);
+    stk::mesh::Entity const* element_rels = bulkData.begin_elements(side);
+    for(std::size_t e=0; e<num_rels; ++e) {
+      stk::mesh::Entity element = element_rels[e];
+      std::size_t entityId = bulkData.identifier(element);
+
       // is this element in requested block
-      bool inBlock_a = element->bucket().member(*blockPart_a);
-      bool inBlock_b = element->bucket().member(*blockPart_b);
-      bool onProc = element->bucket().member(*ownedPart);
-      bool unProc = element->bucket().member(*universalPart);
+      stk::mesh::Bucket const& bucket = bulkData.bucket(element);
+      bool inBlock_a = bucket.member(*blockPart_a);
+      bool inBlock_b = bucket.member(*blockPart_b);
+      bool onProc = bucket.member(*ownedPart);
+      bool unProc = bucket.member(*universalPart);
 
       if(inBlock_a && onProc) {
-        TEUCHOS_ASSERT(element_a==0); // sanity check
+        TEUCHOS_ASSERT(element_a==stk::mesh::Entity()); // sanity check
         element_a = element;
         entityId_a = entityId;
       }
       if(inBlock_b && unProc) {
-        TEUCHOS_ASSERT(element_b==0); // sanity check
+        TEUCHOS_ASSERT(element_b==stk::mesh::Entity()); // sanity check
         element_b = element;
         entityId_b = entityId;
       }
     }
 
-    if(element_a!=0 && element_b!=0) {
+    if(element_a!=stk::mesh::Entity() && element_b!=stk::mesh::Entity()) {
       // add element and Side ID to output vectors
       elements_a.push_back(element_a);
       localSideIds_a.push_back(entityId_a);
@@ -545,34 +552,11 @@ void getSubcellEntities(const panzer_stk::STK_Interface & mesh,
     subcells.clear();
     return;
   }
- 
-  int maxRankIndex = mesh.getDimension()-1;
-  stk::mesh::EntityRank master_rank = entities[0]->entity_rank();
-  std::vector<stk::mesh::EntityRank> ranks(mesh.getDimension()+1);
 
-  // build rank array, and compute maximum rank index (within rank array)
-  // for these entities with "master_rank"
-  switch(mesh.getDimension()) {
-  case 3:
-    ranks[2] = mesh.getFaceRank();
-    maxRankIndex = (master_rank==mesh.getFaceRank() ? 1 : maxRankIndex);
-  case 2:
-    ranks[1] = mesh.getEdgeRank();
-    maxRankIndex = (master_rank==mesh.getEdgeRank() ? 0 : maxRankIndex);
-  case 1:
-    ranks[0] = mesh.getNodeRank();
-    maxRankIndex = (master_rank==mesh.getNodeRank() ? -1 : maxRankIndex);
-    break;
-  default:
-    TEUCHOS_ASSERT(false);
-    break;
-  };
-  ranks[mesh.getDimension()] = mesh.getElementRank();
+  stk::mesh::BulkData& bulkData = *mesh.getBulkData();
+  stk::mesh::EntityRank master_rank = bulkData.entity_rank(entities[0]);
 
-  // make sure the rank index is ok
-  TEUCHOS_ASSERT(maxRankIndex>-1);
-
-  std::vector<std::set<stk::mesh::Entity> > subcells_set(maxRankIndex+1);
+  std::vector<std::set<stk::mesh::Entity> > subcells_set(master_rank);
 
   // loop over each entitiy extracting elements and local entity ID that
   // are containted in specified block.
@@ -581,17 +565,21 @@ void getSubcellEntities(const panzer_stk::STK_Interface & mesh,
     stk::mesh::Entity entity = *entityItr;
 
     // sanity check, enforcing that there is only one rank
-    TEUCHOS_ASSERT(entity->entity_rank()==master_rank); 
+    TEUCHOS_ASSERT(bulkData.entity_rank(entity)==master_rank);
     
-    for(int i=0;i<=maxRankIndex;i++) {
-      stk::mesh::PairIterRelation relations = entity->relations(ranks[i]);
+    for(int i=0; i<master_rank; i++) {
+      stk::mesh::EntityRank const to_rank = static_cast<stk::mesh::EntityRank>(i);
+      if (bulkData.connectivity_map().valid(master_rank, to_rank)) {
+        const size_t num_rels = bulkData.num_connectivity(entity, to_rank);
+        stk::mesh::Entity const* relations = bulkData.begin(entity, to_rank);
 
-      // for each relation insert the appropriate entity (into the set
-      // which gurantees uniqueness
-      for(std::size_t e=0;e<relations.size();++e) {
-        stk::mesh::Entity subcell = relations[e].entity();
+        // for each relation insert the appropriate entity (into the set
+        // which gurantees uniqueness
+        for(std::size_t e=0; e<num_rels; ++e) {
+          stk::mesh::Entity subcell = relations[e];
 
-        subcells_set[i].insert(subcell);
+          subcells_set[i].insert(subcell);
+        }
       }
     }
   }
