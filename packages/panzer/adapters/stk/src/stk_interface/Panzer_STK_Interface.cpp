@@ -438,6 +438,20 @@ void STK_Interface::writeToExodus(const std::string & filename)
    #endif
 }
 
+stk::mesh::Entity STK_Interface::findConnectivityById(stk::mesh::Entity src, stk::mesh::EntityRank tgt_rank, unsigned rel_id) const
+{
+  const size_t num_rels = bulkData_->num_connectivity(src, tgt_rank);
+  stk::mesh::Entity const* relations = bulkData_->begin(src, tgt_rank);
+  stk::mesh::ConnectivityOrdinal const* ordinals = bulkData_->begin_ordinals(src, tgt_rank);
+  for (size_t i = 0; i < num_rels; ++i) {
+    if (ordinals[i] == static_cast<stk::mesh::ConnectivityOrdinals(rel_id)) {
+      return relations[i];
+    }
+  }
+
+  return stk::mesh::Entity();
+}
+
 void STK_Interface::setupTransientExodusFile(const std::string & filename)
 {
    PANZER_FUNC_TIME_MONITOR("STK_Interface::setupTransientExodusFile(filename)");

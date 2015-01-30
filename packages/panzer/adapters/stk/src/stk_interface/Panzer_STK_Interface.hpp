@@ -71,7 +71,7 @@ class PeriodicBC_MatcherBase;
 
 /** Pure virtial base class that builds a basic element. To be
   * overidden with several types of elements.
-  */ 
+  */
 class ElementDescriptor {
 public:
    ElementDescriptor(stk::mesh::EntityId gid,const std::vector<stk::mesh::EntityId> & nodes);
@@ -87,8 +87,8 @@ protected:
 };
 
 /** Constructor function for building the element descriptors.
-  */ 
-Teuchos::RCP<ElementDescriptor> 
+  */
+Teuchos::RCP<ElementDescriptor>
 buildElementDescriptor(stk::mesh::EntityId elmtId,std::vector<stk::mesh::EntityId> & nodes);
 
 class STK_Interface {
@@ -99,10 +99,10 @@ public:
    typedef stk::mesh::Field<ProcIdData> ProcIdFieldType;
 
    // some simple exception classes
-   struct ElementBlockException : public std::logic_error 
+   struct ElementBlockException : public std::logic_error
    { ElementBlockException(const std::string & what) : std::logic_error(what) {} };
 
-   struct SidesetException : public std::logic_error 
+   struct SidesetException : public std::logic_error
    { SidesetException(const std::string & what) : std::logic_error(what) {} };
 
    STK_Interface();
@@ -127,11 +127,11 @@ public:
    void addNodeset(const std::string & name);
 
    /** Add a solution field
-     */ 
+     */
    void addSolutionField(const std::string & fieldName,const std::string & blockId);
 
    /** Add a solution field
-     */ 
+     */
    void addCellField(const std::string & fieldName,const std::string & blockId);
 
    /** Add a solution field for coordinates with a particular prefix, force it
@@ -150,7 +150,7 @@ public:
 
    /** Initialize the mesh with the current dimension This also calls
      * commit on the meta data causing it to be frozen. Information
-     * about elements blocks has to be commited before this. If 
+     * about elements blocks has to be commited before this. If
      * parallel machine has already been specified through <code>instantiateBulkData</code>
      * that communicator is used. Otherwise a new copy is constructed and
      * will be used through out this mesh object's lifetime.
@@ -166,7 +166,7 @@ public:
 
    // functions to manage and manipulate bulk data
    //////////////////////////////////////////
-  
+
    /** Put the bulk data manager in modification mode.
      */
    void beginModification();
@@ -177,7 +177,7 @@ public:
 
    /** Add a node to the mesh with a specific set of coordinates to the mesh.
      *
-     * \pre <code>coord.size()==getDimension()</code> 
+     * \pre <code>coord.size()==getDimension()</code>
      * \pre <code>isModifiable()==true</code>
      */
    void addNode(stk::mesh::EntityId gid, const std::vector<double> & coord);
@@ -197,12 +197,12 @@ public:
    // Methods to interrogate the mesh topology and structure
    //////////////////////////////////////////
 
-   /** Grab the coordinates field 
+   /** Grab the coordinates field
      */
    const VectorFieldType & getCoordinatesField() const
    { return *coordinatesField_; }
 
-   /** Grab the edges field 
+   /** Grab the edges field
      */
    const VectorFieldType & getEdgesField() const
    { return *edgesField_; }
@@ -237,7 +237,7 @@ public:
      */
    void getNeighborElements(const std::string & blockID,std::vector<stk::mesh::Entity> & elements) const;
 
-   /** Get Entities corresponding to the side set requested. 
+   /** Get Entities corresponding to the side set requested.
      * The Entites in the vector should be a dimension
      * lower then <code>getDimension()</code>.
      *
@@ -286,16 +286,22 @@ public:
      */
    void writeToExodus(double timestep);
 
+   /**
+    * Searches for connected entity by rank and relation id. Returns
+    * invalid entity on failure.
+    */
+   stk::mesh::Entity findConnectivityById(stk::mesh::Entity src, stk::mesh::EntityRank tgt_rank, unsigned rel_id) const;
+
    // Accessor functions
    //////////////////////////////////////////
- 
+
    Teuchos::RCP<stk::mesh::BulkData> getBulkData() const { return bulkData_; }
    Teuchos::RCP<stk::mesh::MetaData> getMetaData() const { return metaData_; }
 
    bool isWritable() const;
 
    bool isModifiable() const
-   {  if(bulkData_==Teuchos::null) return false; 
+   {  if(bulkData_==Teuchos::null) return false;
       return bulkData_->synchronized_state()==stk::mesh::BulkData::MODIFIABLE; }
 
    //! get the dimension
@@ -339,10 +345,10 @@ public:
 
    //! get the block count
    stk::mesh::Part * getElementBlockPart(const std::string & name) const
-   { 
+   {
       std::map<std::string, stk::mesh::Part*>::const_iterator itr = elementBlocks_.find(name);   // Element blocks
       if(itr==elementBlocks_.end()) return 0;
-      return itr->second; 
+      return itr->second;
    }
 
    //! get the side set count
@@ -407,7 +413,7 @@ public:
    { return bulkData_->identifier(elmt); }
 
    /**  Get the containing block ID of this element.
-     */ 
+     */
    std::string containingBlockId(stk::mesh::Entity elmt);
 
    /** Get the stk mesh field pointer associated with a particular solution value
@@ -534,7 +540,7 @@ public:
    template <typename ArrayT>
    void getElementVertices(const std::vector<stk::mesh::Entity> & elements,const std::string & eBlock, ArrayT & vertices) const;
 
-   // const stk::mesh::FEMInterface & getFEMInterface() const 
+   // const stk::mesh::FEMInterface & getFEMInterface() const
    // { return *femPtr_; }
 
    stk::mesh::EntityRank getElementRank() const { return stk::topology::ELEMENT_RANK; }
@@ -641,7 +647,7 @@ public:
    { return useFieldCoordinates_; }
 
    /** Use lower case (or not) for I/O */
-   void setUseLowerCaseForIO(bool useLowerCase) 
+   void setUseLowerCaseForIO(bool useLowerCase)
    { useLowerCase_ = useLowerCase; }
 
    /** Use lower case (or not) for I/O */
@@ -665,7 +671,7 @@ protected:
 
    /** Initialize STK fields using a map (allocate space for storage and writing)
      * to a specific entity rank.
-     */ 
+     */
    void initializeFieldsInSTK(const std::map<std::pair<std::string,std::string>,SolutionFieldType*> & nameToField,
                              stk::mesh::EntityRank rank,bool setupIO);
 
@@ -737,8 +743,8 @@ protected:
    Teuchos::RCP<stk::mesh::BulkData> bulkData_;
 
    std::map<std::string, stk::mesh::Part*> elementBlocks_;   // Element blocks
-   std::map<std::string, stk::mesh::Part*> sidesets_; // Side sets 
-   std::map<std::string, stk::mesh::Part*> nodesets_; // Node sets 
+   std::map<std::string, stk::mesh::Part*> sidesets_; // Side sets
+   std::map<std::string, stk::mesh::Part*> nodesets_; // Node sets
    std::map<std::string, Teuchos::RCP<shards::CellTopology> > elementBlockCT_;
 
    // for storing/accessing nodes
@@ -751,7 +757,7 @@ protected:
    VectorFieldType * edgesField_;
    ProcIdFieldType * processorIdField_;
    SolutionFieldType * loadBalField_;
-   
+
    // maps field names to solution field stk mesh handles
    std::map<std::pair<std::string,std::string>,SolutionFieldType*> fieldNameToSolution_;
    std::map<std::pair<std::string,std::string>,SolutionFieldType*> fieldNameToCellField_;
@@ -802,11 +808,11 @@ protected:
    class LocalIdCompare {
    public:
      LocalIdCompare(const STK_Interface * mesh) : mesh_(mesh) {}
-   
+
      // Compares two stk mesh entities based on local ID
-     bool operator() (stk::mesh::Entity a,stk::mesh::Entity b) 
+     bool operator() (stk::mesh::Entity a,stk::mesh::Entity b)
      { return mesh_->elementLocalId(a) < mesh_->elementLocalId(b);}
-   
+
    private:
      const STK_Interface * mesh_;
    };
@@ -820,7 +826,7 @@ void STK_Interface::setSolutionFieldData(const std::string & fieldName,const std
 
    int field_axis = -1;
    if(isMeshCoordField(blockId,fieldName,field_axis)) {
-     setDispFieldData(fieldName,blockId,field_axis,localElementIds,solutionValues); 
+     setDispFieldData(fieldName,blockId,field_axis,localElementIds,solutionValues);
      return;
    }
 
@@ -894,7 +900,7 @@ void STK_Interface::getSolutionFieldData(const std::string & fieldName,const std
 
          double * solnData = stk::mesh::field_data(*field,node);
          // TEUCHOS_ASSERT(solnData!=0); // only needed if blockId is not specified
-         solutionValues(cell,i) = solnData[0]; 
+         solutionValues(cell,i) = solnData[0];
       }
    }
 }
@@ -926,10 +932,10 @@ void STK_Interface::getElementVertices(const std::vector<std::size_t> & localEle
      //
 
      const std::vector<stk::mesh::Entity> & elements = *(this->getElementsOrderedByLID());
-    
+
      // convert to a vector of entity objects
      std::vector<stk::mesh::Entity> selected_elements;
-     for(std::size_t cell=0;cell<localElementIds.size();cell++) 
+     for(std::size_t cell=0;cell<localElementIds.size();cell++)
        selected_elements.push_back(elements[localElementIds[cell]]);
 
      getElementVertices_FromCoords(selected_elements,vertices);
@@ -972,7 +978,7 @@ void STK_Interface::getElementVertices(const std::vector<std::size_t> & localEle
 
    // convert to a vector of entity objects
    std::vector<stk::mesh::Entity> selected_elements;
-   for(std::size_t cell=0;cell<localElementIds.size();cell++) 
+   for(std::size_t cell=0;cell<localElementIds.size();cell++)
      selected_elements.push_back(elements[localElementIds[cell]]);
 
    if(!useFieldCoordinates_) {
@@ -997,7 +1003,7 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk::mesh::E
    //
 
    // get *master* cell toplogy...(belongs to first element)
-   unsigned masterVertexCount 
+   unsigned masterVertexCount
       = stk::mesh::get_cell_topology(bulkData_->bucket(elements[0]).topology()).getCellTopologyData()->vertex_count;
 
    // allocate space
@@ -1008,8 +1014,8 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk::mesh::E
    for(std::size_t cell=0;cell<elements.size();cell++) {
       stk::mesh::Entity element = elements[cell];
       TEUCHOS_ASSERT(bulkData_->is_valid(element));
- 
-      unsigned vertexCount 
+
+      unsigned vertexCount
         = stk::mesh::get_cell_topology(bulkData_->bucket(element).topology()).getCellTopologyData()->vertex_count;
       TEUCHOS_TEST_FOR_EXCEPTION(vertexCount!=masterVertexCount,std::runtime_error,
                          "In call to STK_Interface::getElementVertices all elements "
@@ -1043,7 +1049,7 @@ void STK_Interface::getElementVertices_FromField(const std::vector<stk::mesh::En
    }
 
    // get *master* cell toplogy...(belongs to first element)
-   unsigned masterVertexCount 
+   unsigned masterVertexCount
       = stk::mesh::get_cell_topology(bulkData_->bucket(elements[0]).topology()).getCellTopologyData()->vertex_count;
 
    // allocate space
@@ -1074,15 +1080,15 @@ void STK_Interface::getElementVertices_FromField(const std::vector<stk::mesh::En
 
          for(int d=0;d<getDimension();d++) {
            double * solnData = stk::mesh::field_data(*fields[d],node);
- 
+
            // recall mesh field coordinates are stored as displacements
            // from the mesh coordinates, make sure to add them together
-           vertices(cell,i,d) = solnData[0]+coord[d]; 
+           vertices(cell,i,d) = solnData[0]+coord[d];
          }
       }
    }
 }
- 
+
 }
 
 #endif

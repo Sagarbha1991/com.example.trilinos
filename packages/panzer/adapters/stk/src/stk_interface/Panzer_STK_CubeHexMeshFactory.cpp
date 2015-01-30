@@ -403,17 +403,6 @@ std::pair<panzer::Ordinal64,panzer::Ordinal64> CubeHexMeshFactory::determineZEle
    return std::make_pair(start+nZElems_*zBlock,nume);
 }
 
-// for use with addSideSets
-const stk::mesh::Relation * CubeHexMeshFactory::getRelationByID(unsigned ID,stk::mesh::PairIterRelation relations) const
-{
-   for(std::size_t i=0;i<relations.size();i++) {
-      if(relations[i].identifier()==ID)
-         return &relations[i];
-   }
-
-   return 0;
-}
-
 // this adds side entities only (does not inject them into side sets)
 void CubeHexMeshFactory::addSides(STK_Interface & mesh) const
 {
@@ -440,8 +429,7 @@ void CubeHexMeshFactory::addSides(STK_Interface & mesh) const
    std::vector<stk::mesh::Entity>::const_iterator itr;
    for(itr=localElmts.begin();itr!=localElmts.end();++itr) {
       stk::mesh::Entity element = (*itr);
-      stk::mesh::EntityId gid = element->identifier();      
-      stk::mesh::PairIterRelation relations = element->relations(mesh.getSideRank());
+      stk::mesh::EntityId gid = mesh.elementGlobalId(element);
 
       std::size_t nx,ny,nz;
       nz = (gid-1) / (totalXElems*totalYElems);
@@ -455,39 +443,39 @@ void CubeHexMeshFactory::addSides(STK_Interface & mesh) const
          // on the back
          stk::mesh::EntityId eid = (1+nx+ny*totalXElems)+offset[4];
          stk::mesh::Entity side = mesh.getBulkData()->declare_entity(mesh.getSideRank(),eid,parts);
-         mesh.getBulkData()->declare_relation(*element,side,4);
+         mesh.getBulkData()->declare_relation(element,side,4);
       }
       if(nz+1==totalZElems) {
          // on the front
          stk::mesh::EntityId eid = (1+nx+ny*totalXElems)+offset[5];
          stk::mesh::Entity side = mesh.getBulkData()->declare_entity(mesh.getSideRank(),eid,parts);
-         mesh.getBulkData()->declare_relation(*element,side,5);
+         mesh.getBulkData()->declare_relation(element,side,5);
       }
 
       if(ny==0) {
          // on the bottom 
          stk::mesh::EntityId eid = (1+nx+nz*totalXElems)+offset[0];
          stk::mesh::Entity side = mesh.getBulkData()->declare_entity(mesh.getSideRank(),eid,parts);
-         mesh.getBulkData()->declare_relation(*element,side,0);
+         mesh.getBulkData()->declare_relation(element,side,0);
       }
       if(ny+1==totalYElems) {
          // on the top
          stk::mesh::EntityId eid = (1+nx+nz*totalXElems)+offset[2];
          stk::mesh::Entity side = mesh.getBulkData()->declare_entity(mesh.getSideRank(),eid,parts);
-         mesh.getBulkData()->declare_relation(*element,side,2);
+         mesh.getBulkData()->declare_relation(element,side,2);
       }
 
       if(nx==0) {
          // on the left
          stk::mesh::EntityId eid = (1+ny+nz*totalYElems)+offset[3];
          stk::mesh::Entity side = mesh.getBulkData()->declare_entity(mesh.getSideRank(),eid,parts);
-         mesh.getBulkData()->declare_relation(*element,side,3);
+         mesh.getBulkData()->declare_relation(element,side,3);
       }
       if(nx+1==totalXElems) {
          // on the right
          stk::mesh::EntityId eid = (1+ny+nz*totalYElems)+offset[1];
          stk::mesh::Entity side = mesh.getBulkData()->declare_entity(mesh.getSideRank(),eid,parts);
-         mesh.getBulkData()->declare_relation(*element,side,1);
+         mesh.getBulkData()->declare_relation(element,side,1);
       }
    }
 
@@ -497,6 +485,8 @@ void CubeHexMeshFactory::addSides(STK_Interface & mesh) const
 void CubeHexMeshFactory::addSideSets(STK_Interface & mesh) const
 {
    mesh.beginModification();
+   stk::mesh::BulkData& bulkData = *mesh.getBulkData();
+   const stk::mesh::EntityRank side_rank = mesh.getSideRank();
 
    std::size_t totalXElems = nXElems_*xBlocks_;
    std::size_t totalYElems = nYElems_*yBlocks_;
@@ -519,8 +509,7 @@ void CubeHexMeshFactory::addSideSets(STK_Interface & mesh) const
    std::vector<stk::mesh::Entity>::const_iterator itr;
    for(itr=localElmts.begin();itr!=localElmts.end();++itr) {
       stk::mesh::Entity element = (*itr);
-      stk::mesh::EntityId gid = element->identifier();      
-      stk::mesh::PairIterRelation relations = element->relations(mesh.getSideRank());
+      stk::mesh::EntityId gid = mesh.elementGlobalId(element);
 
       std::size_t nx,ny,nz;
       nz = (gid-1) / (totalXElems*totalYElems);
@@ -529,48 +518,48 @@ void CubeHexMeshFactory::addSideSets(STK_Interface & mesh) const
       nx = gid-ny*totalXElems;
 
       if(nz==0) {
-         stk::mesh::Entity side = getRelationByID(4,relations)->entity();
+         stk::mesh::Entity side = mesh.findConnectivityById(element, side_rank, 4);
 
          // on the back
-         if(side->owner_rank()==machRank_)
-            mesh.addEntityToSideset(*side,back);
+         if(bulkData.parallel_owner_rank(side)==machRank_)
+            mesh.addEntityToSideset(side,back);
       }
       if(nz+1==totalZElems) {
-         stk::mesh::Entity side = getRelationByID(5,relations)->entity();
+         stk::mesh::Entity side = mesh.findConnectivityById(element, side_rank, 5);
 
          // on the front
-         if(side->owner_rank()==machRank_)
-            mesh.addEntityToSideset(*side,front);
+         if(bulkData.parallel_owner_rank(side)==machRank_)
+            mesh.addEntityToSideset(side,front);
       }
 
       if(ny==0) {
-         stk::mesh::Entity side = getRelationByID(0,relations)->entity();
+         stk::mesh::Entity side = mesh.findConnectivityById(element, side_rank, 0);
 
          // on the bottom 
-         if(side->owner_rank()==machRank_)
-            mesh.addEntityToSideset(*side,bottom);
+         if(bulkData.parallel_owner_rank(side)==machRank_)
+            mesh.addEntityToSideset(side,bottom);
       }
       if(ny+1==totalYElems) {
-         stk::mesh::Entity side = getRelationByID(2,relations)->entity();
+         stk::mesh::Entity side = mesh.findConnectivityById(element, side_rank, 2);
 
          // on the top
-         if(side->owner_rank()==machRank_)
-            mesh.addEntityToSideset(*side,top);
+         if(bulkData.parallel_owner_rank(side)==machRank_)
+            mesh.addEntityToSideset(side,top);
       }
 
       if(nx==0) {
-         stk::mesh::Entity side = getRelationByID(3,relations)->entity();
+         stk::mesh::Entity side = mesh.findConnectivityById(element, side_rank, 3);
 
          // on the left
-         if(side->owner_rank()==machRank_)
-            mesh.addEntityToSideset(*side,left);
+         if(bulkData.parallel_owner_rank(side)==machRank_)
+            mesh.addEntityToSideset(side,left);
       }
       if(nx+1==totalXElems) {
-         stk::mesh::Entity side = getRelationByID(1,relations)->entity();
+         stk::mesh::Entity side = mesh.findConnectivityById(element, side_rank, 1);
 
          // on the right
-         if(side->owner_rank()==machRank_)
-            mesh.addEntityToSideset(*side,right);
+         if(bulkData.parallel_owner_rank(side)==machRank_)
+            mesh.addEntityToSideset(side,right);
       }
    }
 
@@ -589,7 +578,7 @@ void CubeHexMeshFactory::addNodeSets(STK_Interface & mesh) const
    {
       // add zero node to origin node set
       stk::mesh::Entity node = bulkData->get_entity(mesh.getNodeRank(),1);
-      mesh.addEntityToNodeset(*node,origin);
+      mesh.addEntityToNodeset(node,origin);
    }
 
    mesh.endModification();
