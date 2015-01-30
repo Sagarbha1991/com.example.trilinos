@@ -47,7 +47,7 @@
 #include "Panzer_STK_ExodusReaderFactory.hpp"
 #include "Panzer_STK_Interface.hpp"
 
-#ifdef HAVE_IOSS 
+#ifdef HAVE_IOSS
 
 #include <Ionit_Initializer.h>
 #include <Ioss_ElementBlock.h>
@@ -61,11 +61,11 @@
 namespace panzer_stk {
 
 STK_ExodusReaderFactory::STK_ExodusReaderFactory()
-  : fileName_(""), restartIndex_(0), useLowerCase_(false), userMeshScaling_(false), meshScaleFactor_(0.0)
+  : fileName_(""), restartIndex_(0), userMeshScaling_(false), meshScaleFactor_(0.0)
 { }
 
 STK_ExodusReaderFactory::STK_ExodusReaderFactory(const std::string & fileName,int restartIndex)
-  : fileName_(fileName), restartIndex_(restartIndex), useLowerCase_(false), userMeshScaling_(false), meshScaleFactor_(0.0)
+  : fileName_(fileName), restartIndex_(restartIndex), userMeshScaling_(false), meshScaleFactor_(0.0)
 { }
 
 Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildMesh(stk::ParallelMachine parallelMach) const
@@ -84,7 +84,7 @@ Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildMesh(stk::ParallelMach
    // this calls commit on meta data
    mesh->initialize(parallelMach,false);
 
-   completeMeshConstruction(*mesh,parallelMach); 
+   completeMeshConstruction(*mesh,parallelMach);
 
    return mesh;
 }
@@ -107,8 +107,6 @@ Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildUncommitedMesh(stk::Pa
 
    const unsigned dim = meshData->meta_data().spatial_dimension();
    RCP<STK_Interface> mesh = rcp(new STK_Interface(dim));
-   // immediately setup lower case usage
-   // mesh->setUseLowerCaseForIO(useLowerCase_); NOT SUPPORTED BY STKMESHIOBROKER!
    mesh->instantiateBulkData(parallelMach);
    meshData->set_bulk_data(mesh->getBulkData());
 
@@ -224,12 +222,9 @@ void STK_ExodusReaderFactory::setParameterList(const Teuchos::RCP<Teuchos::Param
    // Set default values here. Not all the params should be set so this
    // has to be done manually as opposed to using
    // validateParametersAndSetDefaults().
-   if(!paramList->isParameter("Restart Index")) 
+   if(!paramList->isParameter("Restart Index"))
      paramList->set<int>("Restart Index", -1);
 
-   if(!paramList->isParameter("Use Lower Case"))
-     paramList->set<bool>("Use Lower Case", false);
-       
    if(!paramList->isSublist("Periodic BCs"))
      paramList->sublist("Periodic BCs");
 
@@ -244,8 +239,6 @@ void STK_ExodusReaderFactory::setParameterList(const Teuchos::RCP<Teuchos::Param
    fileName_ = paramList->get<std::string>("File Name");
 
    restartIndex_ = paramList->get<int>("Restart Index");
-
-   useLowerCase_ = paramList->get<bool>("Use Lower Case");
 
    // get any mesh scale factor
    if (paramList->isParameter("Scale Factor"))
@@ -265,16 +258,14 @@ Teuchos::RCP<const Teuchos::ParameterList> STK_ExodusReaderFactory::getValidPara
 
    if(validParams==Teuchos::null) {
       validParams = Teuchos::rcp(new Teuchos::ParameterList);
-      validParams->set<std::string>("File Name","<file name not set>","Name of exodus file to be read", 
+      validParams->set<std::string>("File Name","<file name not set>","Name of exodus file to be read",
                                     Teuchos::rcp(new Teuchos::FileNameValidator));
-      
-      validParams->set<int>("Restart Index",-1,"Index of solution to read in", 
+
+      validParams->set<int>("Restart Index",-1,"Index of solution to read in",
 			    Teuchos::rcp(new Teuchos::AnyNumberParameterEntryValidator(Teuchos::AnyNumberParameterEntryValidator::PREFER_INT,Teuchos::AnyNumberParameterEntryValidator::AcceptedTypes(true))));
 
       validParams->set<double>("Scale Factor", 1.0, "Scale factor to apply to mesh after read",
                                Teuchos::rcp(new Teuchos::AnyNumberParameterEntryValidator(Teuchos::AnyNumberParameterEntryValidator::PREFER_DOUBLE,Teuchos::AnyNumberParameterEntryValidator::AcceptedTypes(true))));
-
-      validParams->set<bool>("Use Lower Case",false,"Convert fields to lower case for Exodus I/O.");
 
       Teuchos::ParameterList & bcs = validParams->sublist("Periodic BCs");
       bcs.set<int>("Count",0); // no default periodic boundary conditions
@@ -283,7 +274,7 @@ Teuchos::RCP<const Teuchos::ParameterList> STK_ExodusReaderFactory::getValidPara
    return validParams.getConst();
 }
 
-void STK_ExodusReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const 
+void STK_ExodusReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
 {
    using Teuchos::RCP;
 
