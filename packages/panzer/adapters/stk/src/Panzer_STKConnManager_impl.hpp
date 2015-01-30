@@ -202,14 +202,17 @@ typename STKConnManager<GO>::LocalOrdinal STKConnManager<GO>::addSubcellConnecti
       return 0 ;
 
    // loop over all relations of specified type
+   stk::mesh::BulkData& bulkData = *stkMeshDB_->getBulkData();
    LocalOrdinal numIds = 0;
-   stk::mesh::PairIterRelation relations = element->relations(subcellRank);
-   for(std::size_t sc=0;sc<relations.size();++sc) {
-      stk::mesh::Entity subcell = relations[sc].entity();
+   const stk::mesh::EntityRank rank = static_cast<stk::mesh::EntityRank>(subcellRank);
+   const size_t num_rels = bulkData.num_connectivity(element, rank);
+   stk::mesh::Entity const* relations = bulkData.begin(element, rank);
+   for(std::size_t sc=0; sc<num_rels; ++sc) {
+      stk::mesh::Entity subcell = relations[sc];
 
       // add connectivities: adjust for STK indexing craziness
       for(LocalOrdinal i=0;i<idCnt;i++) 
-         connectivity_.push_back(offset+idCnt*(subcell->identifier()-1)+i);
+         connectivity_.push_back(offset+idCnt*(bulkData.identifier(subcell)-1)+i);
 
       numIds += idCnt;
    }
@@ -235,6 +238,8 @@ void STKConnManager<GO>::modifySubcellConnectivities(const panzer::FieldPattern 
 template <typename GO>
 void STKConnManager<GO>::buildConnectivity(const panzer::FieldPattern & fp)
 {
+   stk::mesh::BulkData& bulkData = *stkMeshDB_->getBulkData();
+
    // get element info from STK_Interface
    // object and build a local element mapping.
    buildLocalElementMapping();
@@ -270,7 +275,7 @@ void STKConnManager<GO>::buildConnectivity(const panzer::FieldPattern & fp)
       if(cellIdCnt>0) {
          // add connectivities: adjust for STK indexing craziness
          for(LocalOrdinal i=0;i<cellIdCnt;i++) 
-            connectivity_.push_back(cellOffset+cellIdCnt*(element->identifier()-1));
+            connectivity_.push_back(cellOffset+cellIdCnt*(bulkData.identifier(element)-1));
       
          numIds += cellIdCnt;
       }
