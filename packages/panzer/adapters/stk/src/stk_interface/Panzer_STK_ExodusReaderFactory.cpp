@@ -75,7 +75,7 @@ Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildMesh(stk::ParallelMach
    using Teuchos::RCP;
    using Teuchos::rcp;
    typedef stk::mesh::Field<double,stk::mesh::Cartesian> VectorFieldType;
-   
+
    RCP<STK_Interface> mesh = buildUncommitedMesh(parallelMach);
 
    // in here you would add your fields...but it is better to use
@@ -93,51 +93,44 @@ Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildMesh(stk::ParallelMach
   * Allows user to add solution fields and other pieces. The mesh can be "completed"
   * by calling <code>completeMeshConstruction</code>.
   */
-Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildUncommitedMesh(stk::ParallelMachine parallelMach) const 
-{ 
+Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildUncommitedMesh(stk::ParallelMachine parallelMach) const
+{
    PANZER_FUNC_TIME_MONITOR("panzer::STK_ExodusReaderFactory::buildUncomittedMesh()");
 
    using Teuchos::RCP;
    using Teuchos::rcp;
 
-   RCP<STK_Interface> mesh = rcp(new STK_Interface());
- 
-   // immediately setup lower case usage
-   mesh->setUseLowerCaseForIO(useLowerCase_);
-
-   RCP<stk::mesh::MetaData> femMetaData = mesh->getMetaData();
-   stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*femMetaData);
-
    // read in meta data
-   Ioss::Init::Initializer io;
-   stk::io::StkMeshIoBroker * meshData = new stk::io::StkMeshIoBroker;
-   stk::io::create_input_mesh("exodusii", fileName_, parallelMach,
-                                    *femMetaData, *meshData,useLowerCase_); // don't use lower case 
+   stk::io::StkMeshIoBroker* meshData = new stk::io::StkMeshIoBroker(parallelMach);
+   meshData->add_mesh_database(fileName_, "exodusII", stk::io::READ_MESH);
+   meshData->create_input_mesh();
 
-   // add in "FAMILY_TREE" entity for doing refinement
-   std::size_t dimension = femMetaData->spatial_dimension();
-   std::vector<std::string> entity_rank_names = stk::mesh::entity_rank_names(dimension);
-   entity_rank_names.push_back("FAMILY_TREE");
-   femMetaData->set_entity_rank_names(entity_rank_names);
+   const unsigned dim = meshData->meta_data().spatial_dimension();
+   RCP<STK_Interface> mesh = rcp(new STK_Interface(dim));
+   // immediately setup lower case usage
+   // mesh->setUseLowerCaseForIO(useLowerCase_); NOT SUPPORTED BY STKMESHIOBROKER!
+   mesh->instantiateBulkData(parallelMach);
+   meshData->set_bulk_data(mesh->getBulkData());
+
+   // Hackey: re-run create_input_mesh with the real MetaData
+   meshData->create_input_mesh();
 
    // read in other transient fields, these will be useful later when
    // trying to read other fields for use in solve
-   stk::io::define_input_fields(*meshData,*femMetaData);
+   meshData->add_all_mesh_fields_as_input_fields();
 
-   // store mesh data pointer for later use in initializing 
+   // store mesh data pointer for later use in initializing
    // bulk data
-   metaData.declare_attribute_with_delete(meshData);
-
-   mesh->initializeFromMetaData();
+   mesh->getMetaData()->declare_attribute_with_delete(meshData);
 
    // build element blocks
    registerElementBlocks(*mesh,*meshData);
-   registerSidesets(*mesh,*meshData);
-   registerNodesets(*mesh,*meshData);
+   registerSidesets(*mesh);
+   registerNodesets(*mesh);
 
    mesh->addPeriodicBCs(periodicBCVec_);
 
-   return mesh; 
+   return mesh;
 }
 
 void STK_ExodusReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk::ParallelMachine parallelMach) const
@@ -151,73 +144,62 @@ void STK_ExodusReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk:
       mesh.initialize(parallelMach);
 
    // grab mesh data pointer to build the bulk data
-   stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*mesh.getMetaData());
-   stk::io::StkMeshIoBroker * meshData = 
-         const_cast<stk::io::StkMeshIoBroker *>(metaData.get_attribute<stk::io::StkMeshIoBroker>());
+   stk::mesh::MetaData & metaData = *mesh.getMetaData();
+   stk::mesh::BulkData & bulkData = *mesh.getBulkData();
+   stk::io::StkMeshIoBroker * meshData =
+     const_cast<stk::io::StkMeshIoBroker *>(metaData.get_attribute<stk::io::StkMeshIoBroker>());
          // if const_cast is wrong ... why does it feel so right?
          // I believe this is safe since we are basically hiding this object under the covers
          // until the mesh construction can be completed...below I cleanup the object myself.
-   TEUCHOS_ASSERT(metaData.remove_attribute(meshData)); 
+   TEUCHOS_ASSERT(metaData.remove_attribute(meshData));
       // remove the MeshData attribute
 
-   RCP<stk::mesh::BulkData> bulkData = mesh.getBulkData();
-
    // build mesh bulk data
-   mesh.beginModification();
-   stk::io::populate_bulk_data(*bulkData, *meshData);
+   meshData->populate_bulk_data();
 
    // The following section of code is applicable if mesh scaling is
    // turned on from the input file.
    if (userMeshScaling_)
    {
      stk::mesh::Field<double,stk::mesh::Cartesian>* coord_field =
-       metaData.get_field<stk::mesh::Field<double, stk::mesh::Cartesian> >("coordinates");
-
-     std::vector<stk::mesh::Bucket*> const all_node_buckets =
-       bulkData->buckets(stk::mesh::MetaData::NODE_RANK);
+       metaData.get_field<stk::mesh::Field<double, stk::mesh::Cartesian> >(stk::topology::NODE_RANK, "coordinates");
 
      stk::mesh::Selector select_all_local = metaData.locally_owned_part() | metaData.globally_shared_part();
-     std::vector<stk::mesh::Bucket*> my_node_buckets;
-     stk::mesh::get_buckets(select_all_local, all_node_buckets, my_node_buckets);
+     stk::mesh::BucketVector const& my_node_buckets = bulkData.get_buckets(stk::topology::NODE_RANK, select_all_local);
 
      int mesh_dim = mesh.getDimension();
 
      // Scale the mesh
+     const double inv_msf = 1.0/meshScaleFactor_;
      for (size_t i=0; i < my_node_buckets.size(); ++i)
      {
        stk::mesh::Bucket& b = *(my_node_buckets[i]);
-       stk::mesh::BucketArray<stk::mesh::Field<double,stk::mesh::Cartesian> > 
-         coordinate_data(*coord_field, b);
+       double* coordinate_data = field_data( *coord_field, b );
 
        for (size_t j=0; j < b.size(); ++j) {
-
-         int index = j;
-
-         double inv_msf = 1.0/meshScaleFactor_;
-         for (int k=0; k < mesh_dim; ++k)
-           coordinate_data(k, index) = coordinate_data(k, index) * inv_msf;
+         for (int k=0; k < mesh_dim; ++k) {
+           coordinate_data[mesh_dim*j + k] *= inv_msf;
+         }
        }
      }
    }
-
-   mesh.endModification();
 
    // put in a negative index and (like python) the restart will be from the back
    // (-1 is the last time step)
    int restartIndex = restartIndex_;
    if(restartIndex<0) {
-     std::pair<int,double> lastTimeStep = meshData->m_input_region->get_max_time();
+     std::pair<int,double> lastTimeStep = meshData->get_input_io_region()->get_max_time();
      restartIndex = 1+restartIndex+lastTimeStep.first;
    }
 
    // populate mesh fields with specific index
-   stk::io::process_input_request(*meshData,*bulkData,restartIndex);
+   meshData->read_defined_input_fields(restartIndex);
 
    mesh.buildSubcells();
    mesh.buildLocalElementIDs();
 
    if(restartIndex>0) // process_input_request is a no-op if restartIndex<=0 ... thus there would be no inital time
-      mesh.setInitialStateTime(meshData->m_input_region->get_state_time(restartIndex));
+      mesh.setInitialStateTime(meshData->get_input_io_region()->get_state_time(restartIndex));
    else
       mesh.setInitialStateTime(0.0); // no initial time to speak, might as well use 0.0
 
@@ -310,10 +292,10 @@ void STK_ExodusReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io
    // here we use the Ioss interface because they don't add
    // "bonus" element blocks and its easier to determine
    // "real" element blocks versus STK-only blocks
-   const Ioss::ElementBlockContainer & elem_blocks = meshData.m_input_region->get_element_blocks();
+   const Ioss::ElementBlockContainer & elem_blocks = meshData.get_input_io_region()->get_element_blocks();
    for(Ioss::ElementBlockContainer::const_iterator itr=elem_blocks.begin();itr!=elem_blocks.end();++itr) {
       Ioss::GroupingEntity * entity = *itr;
-      const std::string & name = entity->name(); 
+      const std::string & name = entity->name();
 
       const stk::mesh::Part * part = femMetaData->get_part(name);
       const CellTopologyData * ct = femMetaData->get_cell_topology(*part).getCellTopologyData();
@@ -333,7 +315,7 @@ void buildSetNames(const SetType & setData,std::vector<std::string> & names)
    }
 }
 
-void STK_ExodusReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
+void STK_ExodusReaderFactory::registerSidesets(STK_Interface & mesh) const
 {
    using Teuchos::RCP;
 
@@ -351,22 +333,22 @@ void STK_ExodusReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::Stk
       // on part contains all sub parts with consistent topology
       if(part->primary_entity_rank()==mesh.getSideRank() && ct==0 && subsets.size()>0) {
          TEUCHOS_TEST_FOR_EXCEPTION(subsets.size()!=1,std::runtime_error,
-                            "STK_ExodusReaderFactory::registerSidesets error - part \"" << part->name() << 
-                            "\" has more than one subset"); 
+                            "STK_ExodusReaderFactory::registerSidesets error - part \"" << part->name() <<
+                            "\" has more than one subset");
 
          // grab cell topology and name of subset part
          const stk::mesh::Part * ss_part = subsets[0];
          // const CellTopologyData * ss_ct = stk::mesh::get_cell_topology(*ss_part).getCellTopologyData();
          const CellTopologyData * ss_ct = metaData->get_cell_topology(*ss_part).getCellTopologyData();
- 
+
          // only add subset parts that have no topology
-         if(ss_ct!=0) 
+         if(ss_ct!=0)
             mesh.addSideset(part->name(),ss_ct);
       }
    }
 }
 
-void STK_ExodusReaderFactory::registerNodesets(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
+void STK_ExodusReaderFactory::registerNodesets(STK_Interface & mesh) const
 {
    using Teuchos::RCP;
 
