@@ -90,7 +90,7 @@ namespace panzer_stk {
     if (pout != NULL) {
       for (std::size_t i=0; i < localSideTopoIDs.size(); ++i) {
 	*pout << "parent element: "
-	      << " gid(" << parentElements[i]->identifier() << ")"
+	      << " gid(" << bulkData->identifier(parentElements[i]) << ")"
 	      << ", local_face(" << localSideTopoIDs[i] << ")"
 	      << std::endl;
       }
@@ -130,16 +130,18 @@ namespace panzer_stk {
 
       if (pout != NULL) {
       *pout << "element normals: "
-	    << "gid(" << (*parentElement)->identifier() << ")"
+	    << "gid(" << bulkData->identifier(*parentElement) << ")"
 	    << ", normal(" << normal(0,0,0) << "," << normal(0,0,1) << "," << normal(0,0,2) << ")"
 	    << std::endl;
       }
 
       // loop over nodes in nodes in side and add normal contribution for averaging
-      stk::mesh::PairIterRelation nodeRelations = (*side)->relations(mesh->getNodeRank());
-      for (stk::mesh::PairIterRelation::iterator node = nodeRelations.begin(); node != nodeRelations.end(); ++node) {
+      const size_t numNodes = bulkData->num_nodes(*side);
+      stk::mesh::Entity const* nodeRelations = bulkData->begin_nodes(*side);
+      for (size_t n=0; n<numNodes; ++n) {
+        stk::mesh::Entity node = nodeRelations[n];
 	for (unsigned dim = 0; dim < parentTopology->getDimension(); ++dim) {
-	  nodeNormals[node->entity()->identifier()].push_back(normal(0,0,dim));
+	  nodeNormals[bulkData->identifier(node)].push_back(normal(0,0,dim));
 	}
       }
 
@@ -244,17 +246,18 @@ namespace panzer_stk {
     for ( ; sideID != localSideTopoIDs.end(); ++side,++sideID,++parentElement) {
     
       // loop over nodes in nodes in side element
-      stk::mesh::PairIterRelation nodeRelations = (*parentElement)->relations(mesh->getNodeRank());
+      const size_t numNodes = bulkData->num_nodes(*parentElement);
+      stk::mesh::Entity const* nodeRelations = bulkData->begin_nodes(*parentElement);
 
-      normals[mesh->elementLocalId(*parentElement)].resize(nodeRelations.size(),parentTopology->getDimension()); 
+      normals[mesh->elementLocalId(*parentElement)].resize(numNodes,parentTopology->getDimension()); 
 
-      int nodeIndex = 0;
-      for (stk::mesh::PairIterRelation::iterator node = nodeRelations.begin(); node != nodeRelations.end(); ++node,++nodeIndex) {
+      for (size_t nodeIndex=0; nodeIndex<numNodes; ++nodeIndex) {
+        stk::mesh::Entity node = nodeRelations[nodeIndex];
 	// if the node is on the sideset, insert, otherwise set normal
 	// to zero (it is an interior node of the parent element).
-	if (nodeEntityIdToNormals.find(node->entity()->identifier()) != nodeEntityIdToNormals.end()) { 
+	if (nodeEntityIdToNormals.find(bulkData->identifier(node)) != nodeEntityIdToNormals.end()) { 
 	  for (unsigned dim = 0; dim < parentTopology->getDimension(); ++dim) {
-	    (normals[mesh->elementLocalId(*parentElement)])(nodeIndex,dim) = (nodeEntityIdToNormals[node->entity()->identifier()])[dim];
+	    (normals[mesh->elementLocalId(*parentElement)])(nodeIndex,dim) = (nodeEntityIdToNormals[bulkData->identifier(node)])[dim];
 	  }
 	}
 	else {
