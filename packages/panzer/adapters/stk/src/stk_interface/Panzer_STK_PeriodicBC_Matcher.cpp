@@ -143,8 +143,8 @@ getLocalSideIds(const STK_Interface & mesh,
      ss << "Can't do BCs of type " << type_  << std::endl;
    }
  
-   std::vector<stk::mesh::Bucket*> nodeBuckets;
-   stk::mesh::get_buckets(mySides,bulkData->buckets(rank),nodeBuckets);
+   std::vector<stk::mesh::Bucket*> const& nodeBuckets =
+     bulkData->get_buckets(rank, mySides);
 
    // build id vector
    ////////////////////////////////////////////
@@ -160,7 +160,7 @@ getLocalSideIds(const STK_Interface & mesh,
       stk::mesh::Bucket & bucket = *nodeBuckets[b]; 
          
       for(std::size_t n=0;n<bucket.size();n++,index++)
-         (*sideIds)[index] = bucket[n].identifier() + offset;
+         (*sideIds)[index] = bulkData->identifier(bucket[n]) + offset;
    }
 
    return sideIds;
@@ -197,8 +197,8 @@ getLocalSideIdsAndCoords(const STK_Interface & mesh,
      ss << "Can't do BCs of type " << type_  << std::endl;
    }
  
-   std::vector<stk::mesh::Bucket*> nodeBuckets;
-   stk::mesh::get_buckets(mySides,bulkData->buckets(rank),nodeBuckets);
+   std::vector<stk::mesh::Bucket*> const& nodeBuckets =
+     bulkData->get_buckets(rank, mySides);
 
    // build id vector
    ////////////////////////////////////////////
@@ -213,16 +213,17 @@ getLocalSideIdsAndCoords(const STK_Interface & mesh,
 
    // loop over node buckets
    for(std::size_t b=0,index=0;b<nodeBuckets.size();b++) {
-      stk::mesh::Bucket & bucket = *nodeBuckets[b]; 
-      stk::mesh::BucketArray<STK_Interface::VectorFieldType> array(*field,bucket);
-         
+      stk::mesh::Bucket & bucket = *nodeBuckets[b];
+      //stk::mesh::BucketArray<STK_Interface::VectorFieldType> array(*field,bucket);
+      double const* array = stk::mesh::field_data(*field, bucket);
+
       for(std::size_t n=0;n<bucket.size();n++,index++) {
-         (*sideIds)[index] = bucket[n].identifier() + offset;
+         (*sideIds)[index] = bulkData->identifier(bucket[n]) + offset;
          Teuchos::Tuple<double,3> & coord = (*sideCoords)[index];
-         
+
          // copy coordinates into multi vector
          for(std::size_t d=0;d<physicalDim;d++)
-            coord[d] = array(d,n);
+            coord[d] = array[physicalDim*n + d];
       }
    }
 
