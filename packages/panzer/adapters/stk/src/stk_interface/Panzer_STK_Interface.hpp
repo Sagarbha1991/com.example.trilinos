@@ -665,7 +665,7 @@ protected:
      * to a specific entity rank.
      */
    void initializeFieldsInSTK(const std::map<std::pair<std::string,std::string>,SolutionFieldType*> & nameToField,
-                             stk::mesh::EntityRank rank,bool setupIO);
+                              bool setupIO);
 
    /** Build a safely handled Teuchos MPI communicator from a parallel machine.
      * This object asserts ownership of the communicator so that we can gurantee
@@ -775,6 +775,7 @@ protected:
 #ifdef HAVE_IOSS
    // I/O support
   Teuchos::RCP<stk::io::StkMeshIoBroker> meshData_;
+  int meshIndex_;
 #endif
 
    // uses lazy evaluation
