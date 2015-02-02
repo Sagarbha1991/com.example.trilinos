@@ -99,37 +99,31 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk::Pa
    using Teuchos::RCP;
    using Teuchos::rcp;
 
-   RCP<STK_Interface> mesh = rcp(new STK_Interface());
-
-   RCP<stk::mesh::MetaData> femMetaData = mesh->getMetaData();
-   stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*femMetaData);
-
    // read in meta data
-   Ioss::Init::Initializer io;
-   stk::io::StkMeshIoBroker * meshData = new stk::io::StkMeshIoBroker;
-   stk::io::create_input_mesh("pamgen", fileName_, parallelMach,
-                                    *femMetaData, *meshData);
+   stk::io::StkMeshIoBroker* meshData = new stk::io::StkMeshIoBroker(parallelMach);
+   meshData->add_mesh_database(fileName_, "pamgen", stk::io::READ_MESH);
+   meshData->create_input_mesh();
 
-   // add in "FAMILY_TREE" entity for doing refinement
-   std::size_t dimension = femMetaData->spatial_dimension();
-   std::vector<std::string> entity_rank_names = stk::mesh::entity_rank_names(dimension);
-   entity_rank_names.push_back("FAMILY_TREE");
-   femMetaData->set_entity_rank_names(entity_rank_names);
+   const unsigned dim = meshData->meta_data().spatial_dimension();
+   RCP<STK_Interface> mesh = rcp(new STK_Interface(dim));
+   mesh->instantiateBulkData(parallelMach);
+   meshData->set_bulk_data(mesh->getBulkData());
+
+   // Hackey: re-run create_input_mesh with the real MetaData
+   meshData->create_input_mesh();
 
    // read in other transient fields, these will be useful later when
    // trying to read other fields for use in solve
-   stk::io::define_input_fields(*meshData,*femMetaData);
+   meshData->add_all_mesh_fields_as_input_fields();
 
-   // store mesh data pointer for later use in initializing 
+   // store mesh data pointer for later use in initializing
    // bulk data
-   metaData.declare_attribute_with_delete(meshData);
-
-   mesh->initializeFromMetaData();
+   mesh->getMetaData()->declare_attribute_with_delete(meshData);
 
    // build element blocks
    registerElementBlocks(*mesh,*meshData);
-   registerSidesets(*mesh,*meshData);
-   registerNodesets(*mesh,*meshData);
+   registerSidesets(*mesh);
+   registerNodesets(*mesh);
 
    mesh->addPeriodicBCs(periodicBCVec_);
 
@@ -147,7 +141,7 @@ void STK_PamgenReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk:
       mesh.initialize(parallelMach);
 
    // grab mesh data pointer to build the bulk data
-   stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*mesh.getMetaData());
+   stk::mesh::MetaData & metaData = *mesh.getMetaData();
    stk::io::StkMeshIoBroker * meshData = 
          const_cast<stk::io::StkMeshIoBroker *>(metaData.get_attribute<stk::io::StkMeshIoBroker>());
          // if const_cast is wrong ... why does it feel so right?
@@ -156,29 +150,25 @@ void STK_PamgenReaderFactory::completeMeshConstruction(STK_Interface & mesh,stk:
    TEUCHOS_ASSERT(metaData.remove_attribute(meshData)); 
       // remove the MeshData attribute
 
-   RCP<stk::mesh::BulkData> bulkData = mesh.getBulkData();
-
    // build mesh bulk data
-   mesh.beginModification();
-   stk::io::populate_bulk_data(*bulkData, *meshData);
-   mesh.endModification();
+   meshData->populate_bulk_data();
 
    // put in a negative index and (like python) the restart will be from the back
    // (-1 is the last time step)
    int restartIndex = restartIndex_;
    if(restartIndex<0) {
-     std::pair<int,double> lastTimeStep = meshData->m_input_region->get_max_time();
+     std::pair<int,double> lastTimeStep = meshData->get_input_io_region()->get_max_time();
      restartIndex = 1+restartIndex+lastTimeStep.first;
    }
 
    // populate mesh fields with specific index
-   stk::io::process_input_request(*meshData,*bulkData,restartIndex);
+   meshData->read_defined_input_fields(restartIndex);
 
    mesh.buildSubcells();
    mesh.buildLocalElementIDs();
 
    if(restartIndex>0) // process_input_request is a no-op if restartIndex<=0 ... thus there would be no inital time
-      mesh.setInitialStateTime(meshData->m_input_region->get_state_time(restartIndex));
+     mesh.setInitialStateTime(meshData->get_input_io_region()->get_state_time(restartIndex));
    else
       mesh.setInitialStateTime(0.0); // no initial time to speak, might as well use 0.0
 
@@ -245,7 +235,7 @@ void STK_PamgenReaderFactory::registerElementBlocks(STK_Interface & mesh,stk::io
    // here we use the Ioss interface because they don't add
    // "bonus" element blocks and its easier to determine
    // "real" element blocks versus STK-only blocks
-   const Ioss::ElementBlockContainer & elem_blocks = meshData.m_input_region->get_element_blocks();
+   const Ioss::ElementBlockContainer & elem_blocks = meshData.get_input_io_region()->get_element_blocks();
    for(Ioss::ElementBlockContainer::const_iterator itr=elem_blocks.begin();itr!=elem_blocks.end();++itr) {
       Ioss::GroupingEntity * entity = *itr;
       const std::string & name = entity->name(); 
@@ -268,7 +258,7 @@ void buildSetNames(const SetType & setData,std::vector<std::string> & names)
    }
 }
 
-void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
+void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh) const
 {
    using Teuchos::RCP;
 
@@ -301,7 +291,7 @@ void STK_PamgenReaderFactory::registerSidesets(STK_Interface & mesh,stk::io::Stk
    }
 }
 
-void STK_PamgenReaderFactory::registerNodesets(STK_Interface & mesh,stk::io::StkMeshIoBroker & meshData) const
+void STK_PamgenReaderFactory::registerNodesets(STK_Interface & mesh) const
 {
    using Teuchos::RCP;
 
