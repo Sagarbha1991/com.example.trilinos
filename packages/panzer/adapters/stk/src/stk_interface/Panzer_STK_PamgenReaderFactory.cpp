@@ -60,11 +60,11 @@
 namespace panzer_stk {
 
 STK_PamgenReaderFactory::STK_PamgenReaderFactory()
-   : fileName_(""), restartIndex_(0), useLowerCase_(false)
+   : fileName_(""), restartIndex_(0)
 { }
 
 STK_PamgenReaderFactory::STK_PamgenReaderFactory(const std::string & fileName,int restartIndex)
-   : fileName_(fileName), restartIndex_(restartIndex), useLowerCase_(false)
+   : fileName_(fileName), restartIndex_(restartIndex)
 { }
 
 Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildMesh(stk::ParallelMachine parallelMach) const
@@ -101,9 +101,6 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk::Pa
 
    RCP<STK_Interface> mesh = rcp(new STK_Interface());
 
-   // immediately setup lower case usage
-   mesh->setUseLowerCaseForIO(useLowerCase_);
-
    RCP<stk::mesh::MetaData> femMetaData = mesh->getMetaData();
    stk::mesh::MetaData & metaData = stk::mesh::MetaData::get_meta_data(*femMetaData);
 
@@ -111,7 +108,7 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk::Pa
    Ioss::Init::Initializer io;
    stk::io::StkMeshIoBroker * meshData = new stk::io::StkMeshIoBroker;
    stk::io::create_input_mesh("pamgen", fileName_, parallelMach,
-                                    *femMetaData, *meshData,useLowerCase_);
+                                    *femMetaData, *meshData);
 
    // add in "FAMILY_TREE" entity for doing refinement
    std::size_t dimension = femMetaData->spatial_dimension();
@@ -212,8 +209,6 @@ void STK_PamgenReaderFactory::setParameterList(const Teuchos::RCP<Teuchos::Param
    fileName_ = paramList->get<std::string>("File Name");
 
    restartIndex_ = paramList->get<int>("Restart Index");
-
-   useLowerCase_ = paramList->get<bool>("Use Lower Case");
 
    // read in periodic boundary conditions
    parsePeriodicBCList(Teuchos::rcpFromRef(paramList->sublist("Periodic BCs")),periodicBCVec_);

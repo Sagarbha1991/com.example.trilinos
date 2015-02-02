@@ -111,7 +111,6 @@ protected:
 
    std::string fileName_;
    int restartIndex_;
-   bool useLowerCase_;
 };
 
 }
