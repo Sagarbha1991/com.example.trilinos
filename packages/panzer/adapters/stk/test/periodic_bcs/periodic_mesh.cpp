@@ -99,9 +99,9 @@ namespace panzer {
   {
     using Teuchos::RCP;
     using Teuchos::rcp_dynamic_cast;
-    using namespace panzer_stk_classic;
+    using namespace panzer_stk;
 
-    panzer_stk_classic::PeriodicBC_Parser parser;
+    panzer_stk::PeriodicBC_Parser parser;
 
     // test basic bc construction functionality
     {
@@ -119,7 +119,7 @@ namespace panzer {
        parser.buildMatcher_Tokenize("y-edge beg ; what ",matcher,bndry1,bndry2);
        TEST_EQUALITY(matcher,"y-edge"); TEST_EQUALITY(bndry1,"beg"); TEST_EQUALITY(bndry2,"what");
     
-       RCP<const panzer_stk_classic::PeriodicBC_MatcherBase> matcher_obj;
+       RCP<const panzer_stk::PeriodicBC_MatcherBase> matcher_obj;
     
        matcher_obj = parser.buildMatcher("x-coord left;right");
        TEST_NOTHROW(rcp_dynamic_cast<const PeriodicBC_Matcher<CoordMatcher> >(matcher_obj));
@@ -172,11 +172,11 @@ namespace panzer {
     using Teuchos::RCP;
     using Teuchos::Tuple;
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -187,17 +187,17 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",y_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher,"edge"));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",y_matcher,"edge"));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",y_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher,"edge"));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",y_matcher,"edge"));
 
-    std::vector<RCP<const panzer_stk_classic::PeriodicBC_MatcherBase> > & mod_vec = mesh->getPeriodicBCVector();
+    std::vector<RCP<const panzer_stk::PeriodicBC_MatcherBase> > & mod_vec = mesh->getPeriodicBCVector();
     TEST_EQUALITY(mod_vec.size(),4);
 
-    const std::vector<RCP<const panzer_stk_classic::PeriodicBC_MatcherBase> > & const_vec = mesh.getConst()->getPeriodicBCVector();
+    const std::vector<RCP<const panzer_stk::PeriodicBC_MatcherBase> > & const_vec = mesh.getConst()->getPeriodicBCVector();
     TEST_EQUALITY(const_vec.size(),4);
   }
 
@@ -210,11 +210,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -225,15 +225,15 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    // mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",y_matcher));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    // mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",y_matcher));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_QUAD_C1_FEM<double,FieldContainer> >();
@@ -276,11 +276,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -291,15 +291,15 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    // mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",y_matcher,"edge"));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    // mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",y_matcher,"edge"));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HCURL_QUAD_I1_FEM<double,FieldContainer> >();
@@ -323,11 +323,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -338,14 +338,14 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_QUAD_C1_FEM<double,FieldContainer> >();
@@ -388,11 +388,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -403,14 +403,14 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher,"edge"));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher,"edge"));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HCURL_QUAD_I1_FEM<double,FieldContainer> >();
@@ -437,11 +437,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -452,17 +452,17 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",y_matcher));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",y_matcher));
 
     mesh->writeToExodus("twod.exo");
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_QUAD_C1_FEM<double,FieldContainer> >();
@@ -504,11 +504,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -519,17 +519,17 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher,"edge"));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",y_matcher,"edge"));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher,"edge"));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",y_matcher,"edge"));
 
     mesh->writeToExodus("twod.exo");
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HCURL_QUAD_I1_FEM<double,FieldContainer> >();
@@ -557,11 +557,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -572,15 +572,15 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
-    panzer_stk_classic::CoordMatcher y_matcher(1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",x_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("right","left",y_matcher));
+    panzer_stk::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher y_matcher(1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",x_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("right","left",y_matcher));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_QUAD_C1_FEM<double,FieldContainer> >();
@@ -622,11 +622,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::CubeHexMeshFactory mesh_factory;
+    panzer_stk::CubeHexMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",1);
@@ -640,17 +640,17 @@ namespace panzer {
     }
     // mesh->writeToExodus("what.exo");
 
-    panzer_stk_classic::PlaneMatcher top_matcher(0,2);
-    panzer_stk_classic::PlaneMatcher side_matcher(1,2);
-    panzer_stk_classic::PlaneMatcher front_matcher(0,1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",top_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",side_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("front","back",front_matcher));
+    panzer_stk::PlaneMatcher top_matcher(0,2);
+    panzer_stk::PlaneMatcher side_matcher(1,2);
+    panzer_stk::PlaneMatcher front_matcher(0,1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",top_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",side_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("front","back",front_matcher));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_HEX_C1_FEM<double,FieldContainer> >();
@@ -751,11 +751,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::CubeHexMeshFactory mesh_factory;
+    panzer_stk::CubeHexMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",1);
@@ -769,17 +769,17 @@ namespace panzer {
     }
     // mesh->writeToExodus("what.exo");
 
-    panzer_stk_classic::PlaneMatcher top_matcher(0,2);
-    panzer_stk_classic::PlaneMatcher side_matcher(1,2);
-    panzer_stk_classic::PlaneMatcher front_matcher(0,1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("top","bottom",top_matcher,"edge"));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",side_matcher,"edge"));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("front","back",front_matcher,"edge"));
+    panzer_stk::PlaneMatcher top_matcher(0,2);
+    panzer_stk::PlaneMatcher side_matcher(1,2);
+    panzer_stk::PlaneMatcher front_matcher(0,1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("top","bottom",top_matcher,"edge"));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",side_matcher,"edge"));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("front","back",front_matcher,"edge"));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HCURL_HEX_I1_FEM<double,FieldContainer> >();
@@ -847,11 +847,11 @@ namespace panzer {
     TEUCHOS_ASSERT(Comm.NumProc()==2);
     int myRank = Comm.MyPID(); 
 
-    panzer_stk_classic::CubeHexMeshFactory mesh_factory;
+    panzer_stk::CubeHexMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",1);
@@ -866,13 +866,13 @@ namespace panzer {
 
     // mesh->writeToExodus("what.exo");
 
-    panzer_stk_classic::QuarterPlaneMatcher quarter_matcher(0,2,1); // (xz)y
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("back","left",quarter_matcher));
+    panzer_stk::QuarterPlaneMatcher quarter_matcher(0,2,1); // (xz)y
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("back","left",quarter_matcher));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_HEX_C1_FEM<double,FieldContainer> >();
@@ -955,11 +955,11 @@ namespace panzer {
 
     // panzer::pauseToAttach();
 
-    panzer_stk_classic::CubeHexMeshFactory mesh_factory;
+    panzer_stk::CubeHexMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",1);
@@ -981,15 +981,15 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::PlaneMatcher side_matcher(1,2);
-    panzer_stk_classic::PlaneMatcher front_matcher(0,1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",side_matcher));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("front","back",front_matcher));
+    panzer_stk::PlaneMatcher side_matcher(1,2);
+    panzer_stk::PlaneMatcher front_matcher(0,1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",side_matcher));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("front","back",front_matcher));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HGRAD_HEX_C1_FEM<double,FieldContainer> >();
@@ -1006,11 +1006,11 @@ namespace panzer {
 
     // panzer::pauseToAttach();
 
-    panzer_stk_classic::CubeHexMeshFactory mesh_factory;
+    panzer_stk::CubeHexMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",1);
@@ -1032,15 +1032,15 @@ namespace panzer {
        mesh = mesh_factory.buildMesh(MPI_COMM_WORLD);
     }
 
-    panzer_stk_classic::PlaneMatcher side_matcher(1,2);
-    panzer_stk_classic::PlaneMatcher front_matcher(0,1);
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("left","right",side_matcher,"edge"));
-    mesh->addPeriodicBC(panzer_stk_classic::buildPeriodicBC_Matcher("front","back",front_matcher,"edge"));
+    panzer_stk::PlaneMatcher side_matcher(1,2);
+    panzer_stk::PlaneMatcher front_matcher(0,1);
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("left","right",side_matcher,"edge"));
+    mesh->addPeriodicBC(panzer_stk::buildPeriodicBC_Matcher("front","back",front_matcher,"edge"));
 
     // connection manager
     /////////////////////////////////////////////
     Teuchos::RCP<panzer::ConnManager<int,int> > connMngr 
-          = Teuchos::rcp(new panzer_stk_classic::STKConnManager<int>(mesh));
+          = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
 
     RCP<const panzer::FieldPattern> fp
          = buildFieldPattern<Intrepid::Basis_HCURL_HEX_I1_FEM<double,FieldContainer> >();
@@ -1055,11 +1055,11 @@ namespace panzer {
     Epetra_MpiComm Comm(MPI_COMM_WORLD);
     TEUCHOS_ASSERT(Comm.NumProc()==2);
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -1072,9 +1072,9 @@ namespace panzer {
 
     // mesh->writeToExodus("output.exo");
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher x_matcher(0);
     std::pair<RCP<std::vector<std::size_t> >,
-         RCP<std::vector<Tuple<double,3> > > > idsAndCoords = panzer_stk_classic::periodic_helpers::getSideIdsAndCoords(*mesh,"top");
+         RCP<std::vector<Tuple<double,3> > > > idsAndCoords = panzer_stk::periodic_helpers::getSideIdsAndCoords(*mesh,"top");
 
     TEST_EQUALITY(idsAndCoords.first->size(),5);
     TEST_EQUALITY(idsAndCoords.second->size(),5);
@@ -1088,11 +1088,11 @@ namespace panzer {
     Epetra_MpiComm Comm(MPI_COMM_WORLD);
     TEUCHOS_ASSERT(Comm.NumProc()==2);
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -1105,9 +1105,9 @@ namespace panzer {
 
     // mesh->writeToExodus("output.exo");
 
-    panzer_stk_classic::CoordMatcher x_matcher(0);
+    panzer_stk::CoordMatcher x_matcher(0);
     std::pair<RCP<std::vector<std::size_t> >,
-         RCP<std::vector<Tuple<double,3> > > > idsAndCoords = panzer_stk_classic::periodic_helpers::getSideIdsAndCoords(*mesh,"top","edge");
+         RCP<std::vector<Tuple<double,3> > > > idsAndCoords = panzer_stk::periodic_helpers::getSideIdsAndCoords(*mesh,"top","edge");
 
     TEST_EQUALITY(idsAndCoords.first->size(),4);
     TEST_EQUALITY(idsAndCoords.second->size(),4);
@@ -1120,11 +1120,11 @@ namespace panzer {
 
     Epetra_MpiComm Comm(MPI_COMM_WORLD);
 
-    panzer_stk_classic::SquareQuadMeshFactory mesh_factory;
+    panzer_stk::SquareQuadMeshFactory mesh_factory;
 
     // setup mesh
     /////////////////////////////////////////////
-    RCP<panzer_stk_classic::STK_Interface> mesh;
+    RCP<panzer_stk::STK_Interface> mesh;
     {
        RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
        pl->set("X Blocks",2);
@@ -1136,14 +1136,14 @@ namespace panzer {
     }
 
     {
-       panzer_stk_classic::CoordMatcher matcher(1);
-       Teuchos::RCP<const panzer_stk_classic::PeriodicBC_MatcherBase> pMatch 
-             = panzer_stk_classic::buildPeriodicBC_Matcher("left","right",matcher);
+       panzer_stk::CoordMatcher matcher(1);
+       Teuchos::RCP<const panzer_stk::PeriodicBC_MatcherBase> pMatch 
+             = panzer_stk::buildPeriodicBC_Matcher("left","right",matcher);
 
        RCP<std::vector<std::pair<std::size_t,std::size_t> > > globallyMatchedIds = pMatch->getMatchedPair(*mesh);
 
        // for testing purposes!
-       RCP<std::vector<std::size_t> > locallyRequiredIds = panzer_stk_classic::periodic_helpers::getLocalSideIds(*mesh,"left");
+       RCP<std::vector<std::size_t> > locallyRequiredIds = panzer_stk::periodic_helpers::getLocalSideIds(*mesh,"left");
 
        TEST_EQUALITY(globallyMatchedIds->size(),locallyRequiredIds->size()); 
 
