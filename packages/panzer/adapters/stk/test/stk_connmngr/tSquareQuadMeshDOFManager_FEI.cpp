@@ -461,7 +461,7 @@ TEUCHOS_UNIT_TEST(tSquareQuadMeshDOFManager,getDofCoords)
    meshDB->print(out);
 
    // grab elements from mesh
-   std::vector<stk::mesh::Entity*> block00, block01;
+   std::vector<stk::mesh::Entity> block00, block01;
    meshDB->getMyElements("eblock-0_0",block00);
    meshDB->getMyElements("eblock-1_0",block01);
   
@@ -491,7 +491,7 @@ TEUCHOS_UNIT_TEST(tSquareQuadMeshDOFManager,getDofCoords)
       TEST_EQUALITY(localIds_01[i],meshDB->elementLocalId(block01[i]));
 
    // for(std::size_t c=0;c<block00.size();c++) {
-   //    stk::mesh::Entity * element = block00[c];
+   //    stk::mesh::Entity element = block00[c];
    //    for(int i=0;i<4;i++) {
    //    }
    // }
