@@ -90,7 +90,7 @@ namespace panzer {
     
     // This is for local sides, no ghosted  
     //mesh->getMySides(sideName,blockName,sides);
-    RCP<stk_classic::mesh::fem::FEMMetaData> metaData = mesh->getMetaData();
+    RCP<stk_classic::mesh::fem::MetaData> metaData = mesh->getMetaData();
     RCP<stk_classic::mesh::BulkData> bulkData = mesh->getBulkData();
     
     stk_classic::mesh::Part * sidePart = mesh->getSideset(sideName);

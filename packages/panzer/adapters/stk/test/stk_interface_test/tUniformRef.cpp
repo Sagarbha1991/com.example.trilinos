@@ -105,7 +105,7 @@ TEUCHOS_UNIT_TEST(tUniformRef, stk_fixture)
    RCP<STK_Interface> mesh = factory.buildUncommitedMesh(MPI_COMM_WORLD);
 
    // Step 1: Build Percept data structures and pattern
-   stk_classic::mesh::fem::FEMMetaData * metaData = &*mesh->getMetaData();
+   stk_classic::mesh::fem::MetaData * metaData = &*mesh->getMetaData();
 
    mesh->instantiateBulkData(MPI_COMM_WORLD);
 
@@ -170,7 +170,7 @@ TEUCHOS_UNIT_TEST(tUniformRef, stk_exodus)
    RCP<STK_Interface> mesh = factory.buildUncommitedMesh(MPI_COMM_WORLD);
 
    // Step 1: Build Percept data structures and pattern
-   stk_classic::mesh::fem::FEMMetaData * metaData = &*mesh->getMetaData();
+   stk_classic::mesh::fem::MetaData * metaData = &*mesh->getMetaData();
 
    mesh->instantiateBulkData(MPI_COMM_WORLD);
 

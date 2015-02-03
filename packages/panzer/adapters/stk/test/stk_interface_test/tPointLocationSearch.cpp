@@ -97,7 +97,7 @@ TEUCHOS_UNIT_TEST(tPointLocationSearch, basic)
    TEST_ASSERT(not mesh->isModifiable());
 
    // Build (domain) bounding boxes for all cells in mesh
-   RCP<stk_classic::mesh::fem::FEMMetaData> meta_data = mesh->getMetaData();
+   RCP<stk_classic::mesh::fem::MetaData> meta_data = mesh->getMetaData();
    RCP<stk_classic::mesh::BulkData> bulk_data = mesh->getBulkData(); 
    const stk_classic::mesh::Field<double, stk_classic::mesh::Cartesian>* domain_coord_field = &(mesh->getCoordinatesField());
    stk_classic::ParallelMachine comm = bulk_data->parallel();
