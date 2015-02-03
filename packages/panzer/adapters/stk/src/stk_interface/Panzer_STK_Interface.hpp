@@ -417,6 +417,9 @@ public:
    inline int entityOwnerRank(stk::mesh::Entity entity) const
    { return bulkData_->parallel_owner_rank(entity); }
 
+   inline bool isValid(stk::mesh::Entity entity) const
+   { return bulkData_->is_valid(entity); }
+
    /**  Get the containing block ID of this element.
      */
    std::string containingBlockId(stk::mesh::Entity elmt);

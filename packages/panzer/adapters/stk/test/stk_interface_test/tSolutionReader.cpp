@@ -172,9 +172,9 @@ Teuchos::RCP<panzer_stk::STK_Interface> buildMesh(int elemX,int elemY)
 
   factory.completeMeshConstruction(*mesh,MPI_COMM_WORLD); 
 
-  VariableField * dog_field = mesh->getMetaData()->get_field<VariableField>("dog");
-  VariableField * cat_field = mesh->getMetaData()->get_field<VariableField>("cat");
-  CoordinateField * cField = mesh->getMetaData()->get_field<CoordinateField>("coordinates");
+  VariableField * dog_field = mesh->getMetaData()->get_field<VariableField>(stk::topology::NODE_RANK, "dog");
+  VariableField * cat_field = mesh->getMetaData()->get_field<VariableField>(stk::topology::NODE_RANK, "cat");
+  CoordinateField * cField = mesh->getMetaData()->get_field<CoordinateField>(stk::topology::NODE_RANK, "coordinates");
   TEUCHOS_ASSERT(dog_field!=0);
   TEUCHOS_ASSERT(cat_field!=0);
   TEUCHOS_ASSERT(cField!=0);
@@ -192,16 +192,16 @@ Teuchos::RCP<panzer_stk::STK_Interface> buildMesh(int elemX,int elemY)
      for(stk::mesh::Bucket::iterator itr=bucket->begin();
          itr!=bucket->end();++itr) {
 
-        stk::mesh::EntityArray<CoordinateField> coordinates(*cField,*itr);
-        stk::mesh::EntityArray<VariableField> dog_array(*dog_field,*itr);
+        double* coordinates = stk::mesh::field_data(*cField, *itr);
+        double* dog_array   = stk::mesh::field_data(*dog_field,*itr);
 
-        double x = coordinates(0);
-        double y = coordinates(1);
+        double x = coordinates[0];
+        double y = coordinates[1];
 
-        dog_array() = dog_func(x,y);
+        *dog_array = dog_func(x,y);
         if(bucket->member(*block0_part)) {
-           stk::mesh::EntityArray<VariableField> cat_array(*cat_field,*itr);
-           cat_array() = cat_func(x,y);
+           double* cat_array = stk::mesh::field_data(*cat_field,*itr);
+           *cat_array = cat_func(x,y);
         }
         
      }
