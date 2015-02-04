@@ -79,17 +79,6 @@ private:
 };
 
 /*
-static void getNodeIds(stk::mesh::EntityRank nodeRank,stk::mesh::Entity element,std::vector<stk::mesh::EntityId> & nodeIds)
-{
-   stk::mesh::PairIterRelation nodeRel = element->relations(nodeRank);
-
-   stk::mesh::PairIterRelation::iterator itr;
-   for(itr=nodeRel.begin();itr!=nodeRel.end();++itr)
-      nodeIds.push_back(itr->entity()->identifier());
-}
-*/
-
-/*
 static const double * getNode(const Teuchos::RCP<const STK_Interface> & mesh, stk::mesh::Entity element,int id)
 {
    std::vector<stk::mesh::EntityId> nodeIds;

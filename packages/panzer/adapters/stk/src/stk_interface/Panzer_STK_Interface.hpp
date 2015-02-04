@@ -391,6 +391,8 @@ public:
    //! get a set of elements sharing multiple nodes
    void getElementsSharingNodes(const std::vector<stk::mesh::EntityId> nodeId,std::vector<stk::mesh::Entity> & elements) const;
 
+   void getNodeIdsForElement(stk::mesh::Entity element,std::vector<stk::mesh::EntityId> & nodeIds) const;
+
    //! force the mesh to build subcells: edges and faces
    void buildSubcells();
 

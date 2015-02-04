@@ -66,10 +66,6 @@ using Teuchos::rcp;
 
 namespace panzer {
 
-  void getNodeIds(RCP<panzer_stk::STK_Interface> mesh,
-                  stk::mesh::Entity element,
-                  std::vector<stk::mesh::EntityId> & nodeIds);
-
   void testInitialzation(const Teuchos::RCP<Teuchos::ParameterList>& ipb,
 			 std::vector<panzer::BC>& bcs);
 
@@ -492,7 +488,7 @@ namespace panzer {
 	stk::mesh::Entity element = elements[elm];
 	
 	local_cell_ids.push_back(mesh->elementLocalId(element));
-	getNodeIds(mesh,element,nodes);
+	mesh->getNodeIdsForElement(element,nodes);
 	
 	TEUCHOS_ASSERT(nodes.size()==4);
 	
@@ -659,18 +655,6 @@ namespace panzer {
     }
   }
 
-  void getNodeIds(RCP<panzer_stk::STK_Interface> mesh,
-                  stk::mesh::Entity element,
-		  std::vector<stk::mesh::EntityId> & nodeIds)
-  {
-    stk::mesh::Entity const* nodeRel = mesh->getBulkData()->begin_nodes(element);
-    const size_t numNodes = mesh->getBulkData()->num_nodes(element);
-
-    for (size_t i = 0; i < numNodes; ++i) {
-      nodeIds.push_back(mesh->elementGlobalId(nodeRel[i]));
-    }
-  }
-  
   void testInitialzation(const Teuchos::RCP<Teuchos::ParameterList>& ipb,
 			 std::vector<panzer::BC>& bcs)
   {

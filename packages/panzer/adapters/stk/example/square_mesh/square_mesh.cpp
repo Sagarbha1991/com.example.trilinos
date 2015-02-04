@@ -53,12 +53,10 @@
 
 typedef Intrepid::FieldContainer<double> FieldContainer;
 
-void getNodeIds(stk::mesh::Entity element,stk::mesh::EntityRank nodeRank,std::vector<stk::mesh::EntityId> & nodeIds);
-
 /** This example whows how to get vertex IDs for all the elements
   */
 int main( int argc, char **argv )
-{  
+{
   using Teuchos::RCP;
 
   Teuchos::oblackholestream blackhole;
@@ -79,7 +77,7 @@ int main( int argc, char **argv )
      mesh->writeToExodus("blocked_mesh.exo");
   unsigned dim = mesh->getDimension();
 
-  std::vector<std::string> eBlocks; 
+  std::vector<std::string> eBlocks;
   mesh->getElementBlockNames(eBlocks);
 
   // loop over all blocks
@@ -91,7 +89,7 @@ int main( int argc, char **argv )
      mesh->getMyElements(blockName,elements);
 
      FieldContainer vertices;
-     vertices.resize(elements.size(),4,dim);  
+     vertices.resize(elements.size(),4,dim);
 
      // loop over elements of this block
      for(std::size_t elm=0;elm<elements.size();++elm) {
@@ -99,27 +97,18 @@ int main( int argc, char **argv )
         stk::mesh::Entity element = elements[elm];
 
         localIds.push_back(mesh->elementLocalId(element));
-        getNodeIds(element,mesh->getNodeRank(),nodes);
+        mesh->getNodeIdsForElement(element,nodes);
 
         TEUCHOS_ASSERT(nodes.size()==4);
 
         for(std::size_t v=0;v<nodes.size();++v) {
            const double * coord = mesh->getNodeCoordinates(nodes[v]);
-           
-           for(unsigned d=0;d<dim;++d) 
-              vertices(elm,v,d) = coord[d]; 
+
+           for(unsigned d=0;d<dim;++d)
+              vertices(elm,v,d) = coord[d];
         }
      }
   }
 
   return 0;
-}
-
-void getNodeIds(stk::mesh::Entity element,stk::mesh::EntityRank nodeRank,std::vector<stk::mesh::EntityId> & nodeIds)
-{
-   stk::mesh::PairIterRelation nodeRel = element->relations(nodeRank);
-
-   stk::mesh::PairIterRelation::iterator itr;
-   for(itr=nodeRel.begin();itr!=nodeRel.end();++itr) 
-      nodeIds.push_back(itr->entity()->identifier());
 }
