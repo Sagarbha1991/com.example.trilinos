@@ -98,6 +98,12 @@ STK_Interface::STK_Interface()
    metaData_ = rcp(new stk::mesh::MetaData());
 }
 
+STK_Interface::STK_Interface(Teuchos::RCP<stk::mesh::MetaData> metaData)
+  : dimension_(0), initialized_(false), currentLocalId_(0), initialStateTime_(0.0), currentStateTime_(0.0), useFieldCoordinates_(false)
+{
+  metaData_ = metaData;
+}
+
 STK_Interface::STK_Interface(unsigned dim)
    : dimension_(dim), initialized_(false), currentLocalId_(0), useFieldCoordinates_(false)
 {

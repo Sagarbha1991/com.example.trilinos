@@ -111,6 +111,8 @@ public:
      */
    STK_Interface(unsigned dim);
 
+   STK_Interface(Teuchos::RCP<stk::mesh::MetaData> metaData);
+
    // functions called before initialize
    //////////////////////////////////////////
 

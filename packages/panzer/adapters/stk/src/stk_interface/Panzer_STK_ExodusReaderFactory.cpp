@@ -104,14 +104,12 @@ Teuchos::RCP<STK_Interface> STK_ExodusReaderFactory::buildUncommitedMesh(stk::Pa
    stk::io::StkMeshIoBroker* meshData = new stk::io::StkMeshIoBroker(parallelMach);
    meshData->add_mesh_database(fileName_, "exodusII", stk::io::READ_MESH);
    meshData->create_input_mesh();
+   RCP<stk::mesh::MetaData> metaData = meshData->get_meta_data();
 
-   const unsigned dim = meshData->meta_data().spatial_dimension();
-   RCP<STK_Interface> mesh = rcp(new STK_Interface(dim));
+   RCP<STK_Interface> mesh = rcp(new STK_Interface(metaData));
+   mesh->initializeFromMetaData();
    mesh->instantiateBulkData(parallelMach);
    meshData->set_bulk_data(mesh->getBulkData());
-
-   // Hackey: re-run create_input_mesh with the real MetaData
-   meshData->create_input_mesh();
 
    // read in other transient fields, these will be useful later when
    // trying to read other fields for use in solve

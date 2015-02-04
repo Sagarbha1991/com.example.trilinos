@@ -370,10 +370,11 @@ void getSubcellElements(const panzer_stk::STK_Interface & mesh,
     stk::mesh::Entity entity = *entityItr;
     
     const size_t num_rels = bulkData.num_elements(entity);
-    stk::mesh::Entity const* element_rels = bulkData.begin_elements(entity);
+    stk::mesh::Entity const* relations = bulkData.begin_elements(entity);
+    stk::mesh::ConnectivityOrdinal const* ordinals = bulkData.begin_element_ordinals(entity);
     for(std::size_t e=0; e<num_rels; ++e) {
-      stk::mesh::Entity element = element_rels[e];
-      std::size_t entityId = bulkData.identifier(element);
+      stk::mesh::Entity element = relations[e];
+      std::size_t entityId = ordinals[e];
 	
       // is this element in requested block
       stk::mesh::Bucket const& bucket = bulkData.bucket(element);
@@ -408,9 +409,10 @@ void getUniversalSubcellElements(const panzer_stk::STK_Interface & mesh,
     
     const size_t num_rels = bulkData.num_elements(entity);
     stk::mesh::Entity const* element_rels = bulkData.begin_elements(entity);
+    stk::mesh::ConnectivityOrdinal const* ordinals = bulkData.begin_element_ordinals(entity);
     for(std::size_t e=0; e<num_rels; ++e) {
       stk::mesh::Entity element = element_rels[e];
-      std::size_t entityId = bulkData.identifier(element);
+      std::size_t entityId = ordinals[e];
 	
       // is this element in requested block
       stk::mesh::Bucket const& bucket = bulkData.bucket(element);
@@ -499,9 +501,10 @@ void getSideElements(const panzer_stk::STK_Interface & mesh,
 
     const size_t num_rels = bulkData.num_elements(side);
     stk::mesh::Entity const* element_rels = bulkData.begin_elements(side);
+    stk::mesh::ConnectivityOrdinal const* ordinals = bulkData.begin_element_ordinals(side);
     for(std::size_t e=0; e<num_rels; ++e) {
       stk::mesh::Entity element = element_rels[e];
-      std::size_t entityId = bulkData.identifier(element);
+      std::size_t entityId = ordinals[e];
 
       // is this element in requested block
       stk::mesh::Bucket const& bucket = bulkData.bucket(element);
