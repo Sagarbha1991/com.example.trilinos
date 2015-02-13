@@ -31,12 +31,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
 
-#ifndef stk_mesh_MeshUtils_hpp
-#define stk_mesh_MeshUtils_hpp
+#ifndef stk_mesh_base_impl_MeshImplUtils_hpp
+#define stk_mesh_base_impl_MeshImplUtils_hpp
 
 //----------------------------------------------------------------------
 
 #include <stk_mesh/base/Types.hpp>
+#include <stk_mesh/base/BulkData.hpp>
+#include "stk_util/parallel/DistributedIndex.hpp"  // for DistributedIndex, etc
 
 #include <vector>
 
@@ -53,6 +55,8 @@ namespace impl {
 //----------------------------------------------------------------------
 
 void find_elements_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
+
+bool do_these_nodes_have_any_shell_elements_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes);
 
 void find_locally_owned_elements_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
 
@@ -71,10 +75,6 @@ void internal_generate_parallel_change_lists( const BulkData & mesh ,
                                               std::vector<EntityProc> & shared_change ,
                                               std::vector<EntityProc> & ghosted_change );
 
-void internal_get_processor_dependencies_shared_or_ghosted(
-          const BulkData &mesh,
-          const EntityProc                  shared_or_ghosted_entry ,
-          stk::mesh::EntityToDependentProcessorsMap & owned_node_sharing_map);
 
 void internal_clean_and_verify_parallel_change(
   const BulkData & mesh ,
@@ -91,12 +91,8 @@ void unpack_not_owned_verify_compare_comm_info( CommBuffer&            buf,
                                                 std::vector<int>    &  recv_comm,
                                                 bool&                  bad_comm);
 
-void gather_shared_nodes(stk::mesh::BulkData & mesh, std::vector<EntityKey> & shared_nodes);
 int check_no_shared_elements_or_higher(const BulkData& mesh);
 int check_for_connected_nodes(const BulkData& mesh);
-
-void markEntitiesForResolvingSharingInfoUsingNodes(stk::mesh::BulkData &mesh, stk::mesh::EntityRank entityRank, std::vector<shared_entity_type>& shared_entities);
-bool member_of_owned_closure(const BulkData& mesh, const Entity e , const int p_rank );
 
 template<class DO_THIS_FOR_ENTITY_IN_CLOSURE, class DESIRED_ENTITY>
 void VisitClosureGeneral(
@@ -350,8 +346,9 @@ void VisitAuraClosure(
     VisitAuraClosureGeneral(mesh,entity_of_interest,do_this,ovo);
 }
 
-parallel::DistributedIndex::KeySpanVector convert_entity_keys_to_spans( const MetaData & meta );
+stk::parallel::DistributedIndex::KeySpanVector convert_entity_keys_to_spans( const MetaData & meta );
 
+void internal_fix_node_sharing_delete_on_2015_03_06(stk::mesh::BulkData& bulk_data);
 
 
 } // namespace impl
@@ -361,5 +358,5 @@ parallel::DistributedIndex::KeySpanVector convert_entity_keys_to_spans( const Me
 //----------------------------------------------------------------------
 //----------------------------------------------------------------------
 
-#endif
+#endif // stk_mesh_base_impl_MeshImplUtils_hpp
 

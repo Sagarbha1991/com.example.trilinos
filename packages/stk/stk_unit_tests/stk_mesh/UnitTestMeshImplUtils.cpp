@@ -1,23 +1,23 @@
 // Copyright (c) 2013, Sandia Corporation.
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 //     * Redistributions of source code must retain the above copyright
 //       notice, this list of conditions and the following disclaimer.
-// 
+//
 //     * Redistributions in binary form must reproduce the above
 //       copyright notice, this list of conditions and the following
 //       disclaimer in the documentation and/or other materials provided
 //       with the distribution.
-// 
+//
 //     * Neither the name of Sandia Corporation nor the names of its
 //       contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 // "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 // LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,7 +29,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 
 #include <stddef.h>                     // for size_t
 #include <stk_mesh/base/BulkData.hpp>   // for BulkData
@@ -798,3 +798,243 @@ TEST(MeshImplUtils, visit_aura_closure_vector_ghost)
 //    }
 //}
 
+TEST(MeshImplUtils, check_for_connected_nodes)
+{
+    stk::ParallelMachine communicator = MPI_COMM_WORLD;
+    unsigned spatialDim = 2;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::Part& block_1 = meta.declare_part_with_topology("block_1", stk::topology::QUAD_4_2D);
+    stk::mesh::BulkData mesh(meta, communicator);
+    mesh.modification_begin();
+    Entity node1, node2, node3, node4;
+    if (mesh.parallel_rank() == 0) {
+        Entity element = mesh.declare_entity(stk::topology::ELEMENT_RANK, 1, block_1);
+        node1 = mesh.declare_entity(stk::topology::NODE_RANK,1);
+        node2 = mesh.declare_entity(stk::topology::NODE_RANK,2);
+        node3 = mesh.declare_entity(stk::topology::NODE_RANK,3);
+        node4 = mesh.declare_entity(stk::topology::NODE_RANK,4);
+        //before relations declared, this check should fail
+        EXPECT_EQ(-1, stk::mesh::impl::check_for_connected_nodes(mesh));
+        mesh.declare_relation(element,node1,0);
+        mesh.declare_relation(element,node2,1);
+        mesh.declare_relation(element,node3,2);
+        mesh.declare_relation(element,node4,3);
+    }
+    mesh.modification_end();
+    //nominal checking here
+    EXPECT_EQ(0, stk::mesh::impl::check_for_connected_nodes(mesh));
+}
+
+TEST(MeshImplUtils, check_for_connected_nodes_invalid_topology)
+{
+    stk::ParallelMachine communicator = MPI_COMM_WORLD;
+    unsigned spatialDim = 2;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::BulkData mesh(meta, communicator);
+    mesh.modification_begin();
+    if (mesh.parallel_rank() == 0) {
+        mesh.declare_entity(stk::topology::ELEMENT_RANK, 1);
+        //before relations declared, this check should fail
+        EXPECT_EQ(-1, stk::mesh::impl::check_for_connected_nodes(mesh));
+    }
+}
+
+TEST(MeshImplUtils, comm_mesh_very_parallel_consistency_nominal)
+{
+    stk::ParallelMachine communicator = MPI_COMM_WORLD;
+    unsigned spatialDim = 2;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::Part& block_1 = meta.declare_part_with_topology("block_1", stk::topology::QUAD_4_2D);
+    stk::mesh::BulkData mesh(meta, communicator);
+    if (mesh.parallel_size() >= 1) {
+        mesh.modification_begin();
+        Entity node1, node2, node3, node4;
+        if (mesh.parallel_rank() == 0) {
+            Entity element = mesh.declare_entity(stk::topology::ELEMENT_RANK, 1, block_1);
+            node1 = mesh.declare_entity(stk::topology::NODE_RANK, 1);
+            node2 = mesh.declare_entity(stk::topology::NODE_RANK, 2);
+            node3 = mesh.declare_entity(stk::topology::NODE_RANK, 3);
+            node4 = mesh.declare_entity(stk::topology::NODE_RANK, 4);
+            mesh.declare_relation(element, node1, 0);
+            mesh.declare_relation(element, node2, 1);
+            mesh.declare_relation(element, node3, 2);
+            mesh.declare_relation(element, node4, 3);
+        }
+        mesh.modification_end();
+        std::ostringstream msg ;
+        bool is_consistent = stk::mesh::impl::comm_mesh_verify_parallel_consistency(mesh, msg);
+        ThrowErrorMsgIf(!is_consistent, msg.str());
+    }
+}
+
+TEST(MeshImplUtils, check_no_shared_elements_or_higher_nominal)
+{
+    stk::ParallelMachine pm = MPI_COMM_WORLD;
+    int numProcs = stk::parallel_machine_size(pm);
+    int myRank = stk::parallel_machine_rank(pm);
+    if (numProcs >= 2) {
+        unsigned spatialDim = 2;
+        stk::mesh::MetaData meta(spatialDim);
+        stk::mesh::Part& block_1 = meta.declare_part_with_topology("block_1", stk::topology::QUAD_4_2D);
+        stk::mesh::BulkData mesh(meta, pm);
+        mesh.modification_begin();
+        Entity node1, node2, node3, node4, node5, node6;
+        if (myRank == 0)
+        {
+            Entity element = mesh.declare_entity(stk::topology::ELEMENT_RANK,1,block_1);
+            node1 = mesh.declare_entity(stk::topology::NODE_RANK,1);
+            node2 = mesh.declare_entity(stk::topology::NODE_RANK,2); // shared
+            node3 = mesh.declare_entity(stk::topology::NODE_RANK,3); // shared
+            node4 = mesh.declare_entity(stk::topology::NODE_RANK,4);
+            mesh.declare_relation(element,node1,0);
+            mesh.declare_relation(element,node2,1);
+            mesh.declare_relation(element,node3,2);
+            mesh.declare_relation(element,node4,3);
+            mesh.add_node_sharing(node2,1);
+            mesh.add_node_sharing(node3,1);
+        }
+        if (myRank == 1)
+        {
+            Entity element = mesh.declare_entity(stk::topology::ELEMENT_RANK,2,block_1);
+            node2 = mesh.declare_entity(stk::topology::NODE_RANK,2); // shared
+            node5 = mesh.declare_entity(stk::topology::NODE_RANK,5);
+            node6 = mesh.declare_entity(stk::topology::NODE_RANK,6);
+            node3 = mesh.declare_entity(stk::topology::NODE_RANK,3); // shared
+            mesh.declare_relation(element,node2,0);
+            mesh.declare_relation(element,node5,1);
+            mesh.declare_relation(element,node6,2);
+            mesh.declare_relation(element,node3,3);
+            mesh.add_node_sharing(node2,0);
+            mesh.add_node_sharing(node3,0);
+        }
+        mesh.modification_end();
+        //nominal test of this only, since this is enforced in many places, impossible to create shared elements
+        EXPECT_EQ(0, stk::mesh::impl::check_no_shared_elements_or_higher(mesh));
+    }
+}
+
+TEST(MeshImplUtils, do_these_nodes_have_any_shell_elements_in_common_no_nodes)
+{
+    const int spatialDim = 3;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::BulkData mesh(meta,MPI_COMM_WORLD);
+    EXPECT_FALSE(stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh, 0, NULL));
+}
+
+TEST(MeshImplUtils, do_these_nodes_have_any_shell_elements_in_common_hexshell)
+{
+    const int spatialDim = 3;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::BulkData mesh(meta,MPI_COMM_WORLD);
+    if (mesh.parallel_size() == 1) {
+        stk::io::StkMeshIoBroker exodus_file_reader(MPI_COMM_WORLD);
+        exodus_file_reader.set_bulk_data(mesh);
+        exodus_file_reader.add_mesh_database("generated:1x1x1|shell:X", stk::io::READ_MESH);
+        exodus_file_reader.create_input_mesh();
+        exodus_file_reader.populate_bulk_data();
+        {
+            stk::mesh::Entity shell = (*mesh.buckets(stk::topology::ELEMENT_RANK)[1])[0];
+            ASSERT_TRUE(mesh.bucket(shell).topology().is_shell());
+            stk::mesh::EntityVector nodes(4);
+            for (unsigned i=0 ; i<4 ; ++i) {
+                nodes[i] = mesh.begin_nodes(shell)[i];
+            }
+            EXPECT_TRUE(stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh,4,&nodes[0]));
+        }
+        {
+            stk::mesh::Entity hex = (*mesh.buckets(stk::topology::ELEMENT_RANK)[0])[0];
+            ASSERT_FALSE(mesh.bucket(hex).topology().is_shell());
+            stk::mesh::EntityVector nodes(8);
+            for (unsigned i=0 ; i<8 ; ++i) {
+                nodes[i] = mesh.begin_nodes(hex)[i];
+            }
+            EXPECT_FALSE(stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh,8,&nodes[0]));
+        }
+
+    }
+}
+
+TEST(MeshImplUtils, do_these_nodes_have_any_shell_elements_in_common_hexshellwrap)
+{
+    const int spatialDim = 3;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::BulkData mesh(meta,MPI_COMM_WORLD);
+    if (mesh.parallel_size() == 1) {
+        stk::io::StkMeshIoBroker exodus_file_reader(MPI_COMM_WORLD);
+        exodus_file_reader.set_bulk_data(mesh);
+        exodus_file_reader.add_mesh_database("generated:1x1x1|shell:xXyY", stk::io::READ_MESH);
+        exodus_file_reader.create_input_mesh();
+        exodus_file_reader.populate_bulk_data();
+        stk::mesh::Entity hex = (*mesh.buckets(stk::topology::ELEMENT_RANK)[0])[0];
+        ASSERT_FALSE(mesh.bucket(hex).topology().is_shell());
+        stk::mesh::EntityVector nodes(4);
+        for (unsigned i=0 ; i<4 ; ++i) {
+            nodes[i] = mesh.begin_nodes(hex)[i];
+        }
+        EXPECT_FALSE(stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh,4,&nodes[0]));
+
+    }
+}
+
+
+TEST(MeshImplUtils, verify_internal_fix_node_sharing_delete_on_2015_03_06)
+{
+    stk::ParallelMachine pm = MPI_COMM_WORLD;
+    int numProcs = stk::parallel_machine_size(pm);
+    int myRank = stk::parallel_machine_rank(pm);
+    if (numProcs != 2) { return; }
+    unsigned spatialDim = 2;
+    stk::mesh::MetaData meta(spatialDim);
+    stk::mesh::Part& block_1 = meta.declare_part_with_topology("block_1", stk::topology::QUAD_4_2D);
+    stk::mesh::Part& block_2 = meta.declare_part_with_topology("block_2", stk::topology::LINE_2);
+    stk::mesh::BulkData mesh(meta, pm);
+    mesh.modification_begin();
+    Entity node1, node2, node3, node4, node5, node6;
+    Entity edge1;
+    if (myRank == 0)
+    {
+        Entity element = mesh.declare_entity(stk::topology::ELEMENT_RANK,1,block_1);
+        node1 = mesh.declare_entity(stk::topology::NODE_RANK,1);
+        node2 = mesh.declare_entity(stk::topology::NODE_RANK,2); // shared
+        node3 = mesh.declare_entity(stk::topology::NODE_RANK,3); // shared
+        node4 = mesh.declare_entity(stk::topology::NODE_RANK,4);
+        mesh.declare_relation(element,node1,0);
+        mesh.declare_relation(element,node2,1);
+        mesh.declare_relation(element,node3,2);
+        mesh.declare_relation(element,node4,3);
+        edge1 = mesh.declare_entity(stk::topology::EDGE_RANK,1,block_2); // shared
+        mesh.declare_relation(element,edge1,2);
+        mesh.declare_relation(edge1,node2,0);
+        mesh.declare_relation(edge1,node3,1);
+    }
+    if (myRank == 1)
+    {
+        Entity element = mesh.declare_entity(stk::topology::ELEMENT_RANK,2,block_1);
+        node2 = mesh.declare_entity(stk::topology::NODE_RANK,2); // shared
+        node5 = mesh.declare_entity(stk::topology::NODE_RANK,5);
+        node6 = mesh.declare_entity(stk::topology::NODE_RANK,6);
+        node3 = mesh.declare_entity(stk::topology::NODE_RANK,3); // shared
+        mesh.declare_relation(element,node2,0);
+        mesh.declare_relation(element,node5,1);
+        mesh.declare_relation(element,node6,2);
+        mesh.declare_relation(element,node3,3);
+        edge1 = mesh.declare_entity(stk::topology::EDGE_RANK,1,block_2); // shared
+        mesh.declare_relation(element,edge1,3);
+        mesh.declare_relation(edge1,node2,0);
+        mesh.declare_relation(edge1,node3,1);
+    }
+    // add node sharing is NOT called
+    stk::mesh::impl::internal_fix_node_sharing_delete_on_2015_03_06(mesh);
+    EXPECT_NO_THROW(mesh.modification_end());
+    EXPECT_TRUE(mesh.bucket(node2).shared());
+    EXPECT_TRUE(mesh.bucket(node3).shared());
+    EXPECT_TRUE(mesh.bucket(edge1).shared());
+    {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(mesh,entity_counts);
+        EXPECT_EQ( 6u, entity_counts[0] );
+        EXPECT_EQ( 1u, entity_counts[1] );
+        EXPECT_EQ( 0u, entity_counts[2] );
+        EXPECT_EQ( 2u, entity_counts[3] );
+    }
+}

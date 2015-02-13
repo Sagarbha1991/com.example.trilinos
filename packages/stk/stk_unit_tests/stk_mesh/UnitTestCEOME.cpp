@@ -154,7 +154,7 @@ namespace
 {
 //==============================================================================
 
-void updateSharingAndPrintStats(BulkDataTester &bulk)
+void updateSharingAndPrintStats(stk::mesh::unit_test::BulkDataTester &bulk)
 {
     printMemoryStats(bulk.parallel());
     double startTime = stk::wall_time();
@@ -182,7 +182,7 @@ TEST(CEOME, change_entity_owner_2Elem2ProcMove)
 
     const int spatial_dimension = 2;
     stk::mesh::MetaData meta(spatial_dimension);
-    BulkDataTester bulk(meta, pm);
+    stk::mesh::unit_test::BulkDataTester bulk(meta, pm);
 
     stk::mesh::EntityVector elems;
     CEOUtils::fillMeshfor2Elem2ProcMoveAndTest(bulk, meta, elems);
@@ -222,7 +222,7 @@ TEST(CEOME, change_entity_owner_2Elem2ProcFlip)
     }
     const int spatial_dimension = 2;
     stk::mesh::MetaData meta(spatial_dimension);
-    BulkDataTester mesh(meta, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta, pm);
 
     CEOUtils::fillMeshfor2Elem2ProcFlipAndTest(mesh, meta);
 
@@ -277,7 +277,7 @@ TEST(CEOME, change_entity_owner_3Elem2ProcMoveRight)
     // Set up meta and bulk data
     const unsigned spatial_dim = 2;
     MetaData meta_data(spatial_dim);
-    BulkDataTester mesh(meta_data, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta_data, pm);
     int p_rank = mesh.parallel_rank();
     int p_size = mesh.parallel_size();
 
@@ -329,7 +329,7 @@ TEST(CEOME, change_entity_owner_3Elem2ProcMoveLeft)
     // Set up meta and bulk data
     const unsigned spatial_dim = 2;
     MetaData meta_data(spatial_dim);
-    BulkDataTester mesh(meta_data, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta_data, pm);
     int p_rank = mesh.parallel_rank();
     int p_size = mesh.parallel_size();
 
@@ -366,6 +366,50 @@ TEST(CEOME, change_entity_owner_3Elem2ProcMoveLeft)
     CEOUtils::checkStatesAfterCEOME_3Elem2ProcMoveLeft(mesh);
 }
 
+TEST(CEOME, TwoElemGiveAllEntitiesToOneProcAndCheckParts)
+{
+    stk::ParallelMachine pm = MPI_COMM_WORLD;
+
+    // Set up meta and bulk data
+    const unsigned spatial_dim = 2;
+    MetaData meta(spatial_dim);
+    stk::mesh::unit_test::BulkDataTester mesh(meta, pm);
+    int p_rank = mesh.parallel_rank();
+    int p_size = mesh.parallel_size();
+
+    if(p_size == 2)
+    {
+        CEOUtils::fillMeshfor2Elem2ProcFlipAndTest(mesh, meta);
+
+        stk::mesh::EntityProcVec entitiesToChangeOwner;
+        if(p_rank == 1)
+        {
+            entitiesToChangeOwner.push_back(stk::mesh::EntityProc(mesh.get_entity(stk::topology::ELEMENT_RANK, 2), 0));
+            entitiesToChangeOwner.push_back(stk::mesh::EntityProc(mesh.get_entity(stk::topology::NODE_RANK, 5), 0));
+            entitiesToChangeOwner.push_back(stk::mesh::EntityProc(mesh.get_entity(stk::topology::NODE_RANK, 6), 0));
+        }
+
+        stk::mesh::Part * universal_part = &meta.universal_part();
+        stk::mesh::Part * owned_part     = &meta.locally_owned_part();
+        stk::mesh::Part * aura_part      = &meta.aura_part();
+        stk::mesh::Part * elem_part = meta.get_part("elem_part");
+        stk::mesh::Part * topo_part = &meta.get_cell_topology_root_part(stk::mesh::get_cell_topology(stk::topology::QUAD_4_2D));
+        if(p_rank == 0)
+        {
+            EXPECT_TRUE(CEOUtils::check_parts(mesh, stk::mesh::EntityKey(stk::topology::ELEMENT_RANK, 2), universal_part, aura_part, elem_part, topo_part));
+            EXPECT_TRUE(CEOUtils::check_parts(mesh, stk::mesh::EntityKey(stk::topology::NODE_RANK, 6), universal_part, aura_part, elem_part, topo_part));
+        }
+
+        mesh.change_entity_owner(entitiesToChangeOwner);
+
+        if(p_rank == 0)
+        {
+            EXPECT_TRUE(CEOUtils::check_parts(mesh, stk::mesh::EntityKey(stk::topology::ELEMENT_RANK, 2), universal_part, owned_part, elem_part, topo_part));
+            EXPECT_TRUE(CEOUtils::check_parts(mesh, stk::mesh::EntityKey(stk::topology::NODE_RANK, 6), universal_part, owned_part, elem_part, topo_part));
+        }
+    }
+}
+
 TEST(CEOME, change_entity_owner_4Elem4ProcEdge)
 {
     // This unit-test is designed to test the conditions that results that
@@ -393,7 +437,7 @@ TEST(CEOME, change_entity_owner_4Elem4ProcEdge)
     // Set up meta and bulk data
     const unsigned spatial_dim = 2;
     MetaData meta_data(spatial_dim);
-    BulkDataTester mesh(meta_data, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta_data, pm);
     int p_rank = mesh.parallel_rank();
     int p_size = mesh.parallel_size();
 
@@ -509,7 +553,7 @@ TEST(CEOME, change_entity_owner_8Elem4ProcMoveTop)
 
     unsigned spatialDim = 2;
     stk::mesh::MetaData meta(spatialDim);
-    BulkDataTester mesh(meta, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta, pm);
 
     CEOUtils::fillMeshfor8Elem4ProcMoveTopAndTest(mesh, meta);
 
@@ -567,7 +611,7 @@ TEST(CEOME, change_entity_owner_4Elem4ProcRotate)
 
     unsigned spatialDim = 2;
     stk::mesh::MetaData meta(spatialDim);
-    BulkDataTester mesh(meta, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta, pm);
     const int p_rank = mesh.parallel_rank();
     CEOUtils::fillMeshfor4Elem4ProcRotateAndTest(mesh, meta);
 
@@ -647,7 +691,7 @@ TEST(CEOME, change_entity_owner_3Elem4Proc1Edge3D)
 
     unsigned spatialDim = 3;
     stk::mesh::MetaData meta(spatialDim);
-    BulkDataTester mesh(meta, pm);
+    stk::mesh::unit_test::BulkDataTester mesh(meta, pm);
     const int p_rank = mesh.parallel_rank();
     CEOUtils::fillMeshfor3Elem4Proc1Edge3DAndTest(mesh, meta);
 

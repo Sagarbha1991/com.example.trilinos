@@ -37,7 +37,6 @@
 #include <iostream>
 #include <vector>
 
-#include <boost/static_assert.hpp> 
 #include <stk_util/parallel/ParallelComm.hpp>
 #include <stk_util/parallel/ParallelReduce.hpp>
 
@@ -56,6 +55,7 @@ enum { STK_MPI_TAG_SIZING = 0 , STK_MPI_TAG_DATA = 1 };
 
 namespace {
 
+#ifndef NDEBUG
 bool all_to_all_dense( ParallelMachine p_comm ,
                        const CommBuffer * const send ,
                        const CommBuffer * const recv ,
@@ -222,6 +222,8 @@ bool all_to_all_sparse( ParallelMachine p_comm ,
 
   return MPI_SUCCESS == result ;
 }
+#endif // #ifndef NDEBUG
+
 
 #ifdef NDEBUG
 void communicate_sparse( ParallelMachine p_comm ,
@@ -294,7 +296,6 @@ void communicate_sparse( ParallelMachine p_comm ,
 #endif
 }
 #endif
-
 }
 
 #else
@@ -303,6 +304,7 @@ void communicate_sparse( ParallelMachine p_comm ,
 
 namespace {
 
+#ifndef NDEBUG
 bool all_to_all_dense( ParallelMachine ,
                        const CommBuffer * const send ,
                        const CommBuffer * const recv ,
@@ -316,6 +318,7 @@ bool all_to_all_sparse( ParallelMachine ,
 { return send == recv ; }
 
 }
+#endif // #ifndef NDEBUG
 
 #endif
 
@@ -1015,7 +1018,6 @@ bool comm_sizes( ParallelMachine comm ,
 
   int result = MPI_SUCCESS ;
 
-  std::ostringstream msg ;
 
   num_msg_maximum = 0 ;
 
@@ -1031,6 +1033,7 @@ bool comm_sizes( ParallelMachine comm ,
   else if (sizeof(long long) == sizeof(size_t))
     size_t_type_ = MPI_LONG_LONG;
   else {
+    std::ostringstream msg ;
     msg << method << " ERROR: No matching MPI type found for size_t argument";
     throw std::runtime_error(msg.str());
   }
@@ -1056,6 +1059,7 @@ bool comm_sizes( ParallelMachine comm ,
 
     if ( result != MPI_SUCCESS ) {
       // PARALLEL ERROR
+    std::ostringstream msg ;
       msg << method << " ERROR: " << result << " == MPI_AllReduce" ;
       throw std::runtime_error( msg.str() );
     }
@@ -1064,6 +1068,7 @@ bool comm_sizes( ParallelMachine comm ,
 
     if ( result != MPI_SUCCESS ) {
       // PARALLEL ERROR
+    std::ostringstream msg ;
       msg << method << " ERROR: " << result << " == 2nd MPI_AllReduce" ;
       throw std::runtime_error( msg.str() );
     }
@@ -1090,6 +1095,7 @@ bool comm_sizes( ParallelMachine comm ,
 
     if ( MPI_SUCCESS != result ) {
       // LOCAL ERROR ?
+    std::ostringstream msg ;
       msg << method << " ERROR: " << result << " == MPI_Alltoall" ;
       throw std::runtime_error( msg.str() );
     }
@@ -1113,6 +1119,7 @@ bool comm_sizes( ParallelMachine comm ,
                           MPI_ANY_SOURCE , mpi_tag , comm , p_request );
       if ( MPI_SUCCESS != result ) {
         // LOCAL ERROR
+    std::ostringstream msg ;
         msg << method << " ERROR: " << result << " == MPI_Irecv" ;
         throw std::runtime_error( msg.str() );
       }
@@ -1128,6 +1135,7 @@ bool comm_sizes( ParallelMachine comm ,
         result = MPI_Send( & value , 1 , size_t_type_, dst , mpi_tag , comm );
         if ( MPI_SUCCESS != result ) {
           // LOCAL ERROR
+    std::ostringstream msg ;
           msg << method << " ERROR: " << result << " == MPI_Send" ;
           throw std::runtime_error( msg.str() );
         }
@@ -1143,6 +1151,7 @@ bool comm_sizes( ParallelMachine comm ,
     }
     if ( MPI_SUCCESS != result ) {
       // LOCAL ERROR ?
+    std::ostringstream msg ;
       msg << method << " ERROR: " << result << " == MPI_Waitall" ;
       throw std::runtime_error( msg.str() );
     }
@@ -1158,6 +1167,7 @@ bool comm_sizes( ParallelMachine comm ,
       MPI_Get_count( recv_status , MPI_LONG_LONG , & recv_count );
 
       if ( recv_tag != mpi_tag || recv_count != 1 ) {
+    std::ostringstream msg ;
         msg << method << " ERROR: Received buffer mismatch " ;
         msg << "P" << p_rank << " <- P" << recv_proc ;
         msg << "  " << 1 << " != " << recv_count ;
@@ -1175,6 +1185,7 @@ bool comm_sizes( ParallelMachine comm ,
 
   return global_flag ;
 }
+
 
 //----------------------------------------------------------------------
 //----------------------------------------------------------------------

@@ -75,8 +75,7 @@ void IOShell::Interface::enroll_options()
 		  "exodus");
 
   options_.enroll("extract_group", Ioss::GetLongOption::MandatoryValue,
-		  "Write the data from the specified group to the output file.\n"
-		  "\t\tUse 'ALL' to extract all groups in the file to separate output files.",
+		  "Write the data from the specified group to the output file.\n",
 		  NULL);
 
   options_.enroll("64-bit", Ioss::GetLongOption::NoValue,
@@ -220,6 +219,13 @@ bool IOShell::Interface::parse_options(int argc, char **argv)
 
   if (options_.retrieve("shuffle")) {
     shuffle = true;
+  }
+
+  {
+    const char *temp = options_.retrieve("compress");
+    if (temp != NULL) {
+      compression_level = std::strtol(temp, NULL, 10);
+    }
   }
 
   if (options_.retrieve("rcb")) {

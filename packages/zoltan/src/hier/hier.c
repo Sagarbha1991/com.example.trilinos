@@ -390,7 +390,6 @@ static int final_migrate(
 {
   ZOLTAN_COMM_OBJ *plan=NULL;
   ZOLTAN_ID_TYPE *importList=NULL;
-  ZOLTAN_GNO_TYPE *gnoList = NULL;
   int i, nImports, numGno, next, tag, ierr;
   MPI_Comm comm = hpp->hier_comm;
 
@@ -426,7 +425,6 @@ static int final_migrate(
    */
 
   numGno = hpp->num_obj + nImports - num_export;
-  gnoList = NULL;
   next=0;
 
   if (numGno){
@@ -941,8 +939,8 @@ static int Zoltan_Hier_Initialize_Params(ZZ *zz, HierPartParams *hpp) {
   char *yo = "Zoltan_Hier_Initialize_Params";
   int assist, i=0, j, len;
   int num_cpus, num_siblings;
-  char platform[MAX_PARAM_STRING_LEN+1];
-  char topology[MAX_PARAM_STRING_LEN+1];
+  char platform[MAX_PARAM_STRING_LEN];
+  char topology[MAX_PARAM_STRING_LEN];
   char *c=NULL;
   div_t result;
 
@@ -1243,7 +1241,7 @@ static void Zoltan_Hier_Edge_List_Multi_Fn(
   int *ierr)
 {
   HierPartParams *hpp = (HierPartParams *)data;
-  int i, j, k, idx, nedges;
+  int i, j, k, idx;
   int *out_proc;
   ZOLTAN_ID_TYPE *out_gid;
   float *out_weight, *wgts;
@@ -1256,8 +1254,6 @@ static void Zoltan_Hier_Edge_List_Multi_Fn(
 
   for (i=0; i < num_obj; i++){
     idx = local_id[i];
-
-    nedges = hpp->xadj[idx+1] - hpp->xadj[idx];
 
     for (j= hpp->xadj[idx]; j < hpp->xadj[idx+1]; j++){
       *out_proc++ = hpp->adjproc[j];
@@ -1751,13 +1747,13 @@ int Zoltan_Hier(
 
     ierr = Zoltan_LB_Free_Part(&hier_import_gids, &hier_import_lids,
                                &hier_import_procs, &hier_import_to_part);
-    if (ierr != ZOLTAN_OK && ierr != ZOLTAN_WARN){
+    if (ierr != ZOLTAN_OK){
       ZOLTAN_HIER_ERROR(ierr, "Zoltan_LB_Free_Part returned error.");
     }
 
     ierr = Zoltan_LB_Free_Part(&hier_export_gids, &hier_export_lids,
                                &hier_export_procs, &hier_export_to_part);
-    if (ierr != ZOLTAN_OK && ierr != ZOLTAN_WARN){
+    if (ierr != ZOLTAN_OK){
       ZOLTAN_HIER_ERROR(ierr, "Zoltan_LB_Free_Part returned error.");
     }
 

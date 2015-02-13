@@ -68,6 +68,43 @@ namespace Kokkos {
 namespace Example {
 namespace FENL {
 
+struct DeviceConfig {
+  struct Dim3 {
+    size_t x, y, z;
+    Dim3(const size_t x_, const size_t y_ = 1, const size_t z_ = 1) :
+      x(x_), y(y_), z(z_) {}
+  };
+
+  Dim3 block_dim;
+  size_t num_blocks;
+  size_t num_threads_per_block;
+
+  DeviceConfig(const size_t num_blocks_ = 0,
+               const size_t threads_per_block_x_ = 0,
+               const size_t threads_per_block_y_ = 0,
+               const size_t threads_per_block_z_ = 1) :
+    block_dim(threads_per_block_x_,threads_per_block_y_,threads_per_block_z_),
+    num_blocks(num_blocks_),
+    num_threads_per_block(block_dim.x * block_dim.y * block_dim.z)
+    {}
+};
+
+template< typename ValueType , class Space >
+struct CrsMatrix {
+  typedef Kokkos::StaticCrsGraph< unsigned , Space , void , unsigned >  StaticCrsGraphType ;
+  typedef View< ValueType * , Space > values_type ;
+
+  StaticCrsGraphType  graph ;
+  values_type  values ;
+
+  CrsMatrix() : graph(), values() {}
+
+  CrsMatrix( const StaticCrsGraphType & arg_graph )
+    : graph( arg_graph )
+    , values( "crs_matrix_values" , arg_graph.entries.dimension_0() )
+    {}
+};
+
 // Traits class for creating strided local views for embedded ensemble-based,
 // specialized for ensemble UQ scalar type
 template <typename ViewType>
@@ -129,12 +166,12 @@ struct LocalViewTraits< Kokkos::View<T,Kokkos::Cuda,M,V,Kokkos::Impl::ViewMPVect
 // Compute DeviceConfig struct's based on scalar type
 template <typename ScalarType>
 struct CreateDeviceConfigs {
-  static void eval( Kokkos::DeviceConfig& dev_config_elem,
-                    Kokkos::DeviceConfig& dev_config_gath,
-                    Kokkos::DeviceConfig& dev_config_bc ) {
-    dev_config_elem = Kokkos::DeviceConfig( 0 , 1 , 1 );
-    dev_config_gath = Kokkos::DeviceConfig( 0 , 1 , 1 );
-    dev_config_bc   = Kokkos::DeviceConfig( 0 , 1 , 1 );
+  static void eval( Kokkos::Example::FENL::DeviceConfig& dev_config_elem,
+                    Kokkos::Example::FENL::DeviceConfig& dev_config_gath,
+                    Kokkos::Example::FENL::DeviceConfig& dev_config_bc ) {
+    dev_config_elem = Kokkos::Example::FENL::DeviceConfig( 0 , 1 , 1 );
+    dev_config_gath = Kokkos::Example::FENL::DeviceConfig( 0 , 1 , 1 );
+    dev_config_bc   = Kokkos::Example::FENL::DeviceConfig( 0 , 1 , 1 );
   }
 };
 
@@ -142,9 +179,9 @@ struct CreateDeviceConfigs {
 template <typename StorageType>
 struct CreateDeviceConfigs< Sacado::MP::Vector<StorageType> > {
   typedef typename StorageType::device_type device_type;
-  static void eval( Kokkos::DeviceConfig& dev_config_elem,
-                    Kokkos::DeviceConfig& dev_config_gath,
-                    Kokkos::DeviceConfig& dev_config_bc ) {
+  static void eval( Kokkos::Example::FENL::DeviceConfig& dev_config_elem,
+                    Kokkos::Example::FENL::DeviceConfig& dev_config_gath,
+                    Kokkos::Example::FENL::DeviceConfig& dev_config_bc ) {
     static const unsigned VectorSize = StorageType::static_size;
 #if defined( KOKKOS_HAVE_CUDA )
     enum { is_cuda = Kokkos::Impl::is_same< device_type, Kokkos::Cuda >::value };
@@ -152,14 +189,14 @@ struct CreateDeviceConfigs< Sacado::MP::Vector<StorageType> > {
     enum { is_cuda = false };
 #endif /* #if defined( KOKKOS_HAVE_CUDA ) */
     if ( is_cuda ) {
-      dev_config_elem = Kokkos::DeviceConfig( 0 , VectorSize , 64/VectorSize  );
-      dev_config_gath = Kokkos::DeviceConfig( 0 , VectorSize , 128/VectorSize );
-      dev_config_bc   = Kokkos::DeviceConfig( 0 , VectorSize , 256/VectorSize );
+      dev_config_elem = Kokkos::Example::FENL::DeviceConfig( 0 , VectorSize , 64/VectorSize  );
+      dev_config_gath = Kokkos::Example::FENL::DeviceConfig( 0 , VectorSize , 128/VectorSize );
+      dev_config_bc   = Kokkos::Example::FENL::DeviceConfig( 0 , VectorSize , 256/VectorSize );
     }
     else {
-      dev_config_elem = Kokkos::DeviceConfig( 0 , 1 , 1 );
-      dev_config_gath = Kokkos::DeviceConfig( 0 , 1 , 1 );
-      dev_config_bc   = Kokkos::DeviceConfig( 0 , 1 , 1 );
+      dev_config_elem = Kokkos::Example::FENL::DeviceConfig( 0 , 1 , 1 );
+      dev_config_gath = Kokkos::Example::FENL::DeviceConfig( 0 , 1 , 1 );
+      dev_config_bc   = Kokkos::Example::FENL::DeviceConfig( 0 , 1 , 1 );
     }
   }
 };
@@ -519,7 +556,7 @@ private:
   elem_vectors_type     elem_residual ;
   elem_matrices_type    elem_jacobian ;
   PhaseType             phase ;
-  const Kokkos::DeviceConfig dev_config ;
+  const Kokkos::Example::FENL::DeviceConfig dev_config ;
 
 public:
 
@@ -559,7 +596,7 @@ public:
                       const sparse_matrix_type & arg_jacobian ,
                       const elem_vectors_type  & arg_elem_residual ,
                       const elem_matrices_type & arg_elem_jacobian ,
-                      const Kokkos::DeviceConfig arg_dev_config )
+                      const Kokkos::Example::FENL::DeviceConfig arg_dev_config )
     : elem_node_id( arg_elem_node_id )
     , elem_graph( arg_elem_graph )
     , row_total( "row_total" )
@@ -823,17 +860,17 @@ namespace FENL {
 struct ElementComputationConstantCoefficient {
   enum { is_constant = true };
 
-  const float coeff_k ;
+  const double coeff_k ;
 
   KOKKOS_INLINE_FUNCTION
-  float operator()( double /* x */
+  double operator()( double /* x */
                   , double /* y */
                   , double /* z */
                   , unsigned ensemble_rank
                   ) const
     { return coeff_k ; }
 
-  ElementComputationConstantCoefficient( const float val )
+  ElementComputationConstantCoefficient( const double val )
     : coeff_k( val ) {}
 
   ElementComputationConstantCoefficient( const ElementComputationConstantCoefficient & rhs )
@@ -847,11 +884,10 @@ class ElementComputation ;
 
 
 template< class DeviceType , BoxElemPart::ElemOrder Order , class CoordinateMap ,
-          typename ScalarType , typename OrdinalType , class MemoryTraits , typename SizeType ,
-          class CoeffFunctionType >
+          typename ScalarType , class CoeffFunctionType >
 class ElementComputation
   < Kokkos::Example::BoxElemFixture< DeviceType , Order , CoordinateMap >
-  , Kokkos::CrsMatrix< ScalarType , OrdinalType , DeviceType , MemoryTraits , SizeType >
+  , Kokkos::Example::FENL::CrsMatrix< ScalarType , DeviceType >
   , CoeffFunctionType >
 {
 public:
@@ -864,7 +900,7 @@ public:
   typedef DeviceType   device_type ;
   typedef ScalarType   scalar_type ;
 
-  typedef Kokkos::CrsMatrix< ScalarType , OrdinalType , DeviceType , MemoryTraits , SizeType >  sparse_matrix_type ;
+  typedef Kokkos::Example::FENL::CrsMatrix< ScalarType , DeviceType >  sparse_matrix_type ;
   typedef typename sparse_matrix_type::StaticCrsGraphType                                       sparse_graph_type ;
   typedef typename sparse_matrix_type::values_type matrix_values_type ;
   typedef Kokkos::View< scalar_type* , Kokkos::LayoutLeft, device_type > vector_type ;
@@ -914,7 +950,7 @@ public:
   const vector_type         residual ;
   const sparse_matrix_type  jacobian ;
   const CoeffFunctionType   coeff_function ;
-  const Kokkos::DeviceConfig dev_config ;
+  const Kokkos::Example::FENL::DeviceConfig dev_config ;
 
   ElementComputation( const ElementComputation & rhs )
     : elem_data()
@@ -938,7 +974,7 @@ public:
                       const elem_graph_type    & arg_elem_graph ,
                       const sparse_matrix_type & arg_jacobian ,
                       const vector_type        & arg_residual ,
-                      const Kokkos::DeviceConfig arg_dev_config )
+                      const Kokkos::Example::FENL::DeviceConfig arg_dev_config )
     : elem_data()
     , elem_node_ids( arg_mesh.elem_node() )
     , node_coords(   arg_mesh.node_coord() )
@@ -955,7 +991,7 @@ public:
   ElementComputation( const mesh_type          & arg_mesh ,
                       const CoeffFunctionType  & arg_coeff_function ,
                       const vector_type        & arg_solution ,
-                      const Kokkos::DeviceConfig arg_dev_config)
+                      const Kokkos::Example::FENL::DeviceConfig arg_dev_config)
     : elem_data()
     , elem_node_ids( arg_mesh.elem_node() )
     , node_coords(   arg_mesh.node_coord() )
@@ -994,14 +1030,14 @@ public:
      /* Gradient transform */ FunctionCount * 15 ;
 
   KOKKOS_INLINE_FUNCTION
-  float transform_gradients(
-    const float grad[][ FunctionCount ] , // Gradient of bases master element
+  double transform_gradients(
+    const double grad[][ FunctionCount ] , // Gradient of bases master element
     const double x[] ,
     const double y[] ,
     const double z[] ,
-    float dpsidx[] ,
-    float dpsidy[] ,
-    float dpsidz[] ) const
+    double dpsidx[] ,
+    double dpsidy[] ,
+    double dpsidz[] ) const
   {
     enum { j11 = 0 , j12 = 1 , j13 = 2 ,
            j21 = 3 , j22 = 4 , j23 = 5 ,
@@ -1016,9 +1052,9 @@ public:
       const double x2 = y[i] ;
       const double x3 = z[i] ;
 
-      const float g1 = grad[0][i] ;
-      const float g2 = grad[1][i] ;
-      const float g3 = grad[2][i] ;
+      const double g1 = grad[0][i] ;
+      const double g2 = grad[1][i] ;
+      const double g3 = grad[2][i] ;
 
       J[j11] += g1 * x1 ;
       J[j12] += g1 * x2 ;
@@ -1035,33 +1071,33 @@ public:
 
     // Inverse jacobian:
 
-    float invJ[ TensorDim ] = {
-      static_cast<float>( J[j22] * J[j33] - J[j23] * J[j32] ) ,
-      static_cast<float>( J[j13] * J[j32] - J[j12] * J[j33] ) ,
-      static_cast<float>( J[j12] * J[j23] - J[j13] * J[j22] ) ,
+    double invJ[ TensorDim ] = {
+      static_cast<double>( J[j22] * J[j33] - J[j23] * J[j32] ) ,
+      static_cast<double>( J[j13] * J[j32] - J[j12] * J[j33] ) ,
+      static_cast<double>( J[j12] * J[j23] - J[j13] * J[j22] ) ,
 
-      static_cast<float>( J[j23] * J[j31] - J[j21] * J[j33] ) ,
-      static_cast<float>( J[j11] * J[j33] - J[j13] * J[j31] ) ,
-      static_cast<float>( J[j13] * J[j21] - J[j11] * J[j23] ) ,
+      static_cast<double>( J[j23] * J[j31] - J[j21] * J[j33] ) ,
+      static_cast<double>( J[j11] * J[j33] - J[j13] * J[j31] ) ,
+      static_cast<double>( J[j13] * J[j21] - J[j11] * J[j23] ) ,
 
-      static_cast<float>( J[j21] * J[j32] - J[j22] * J[j31] ) ,
-      static_cast<float>( J[j12] * J[j31] - J[j11] * J[j32] ) ,
-      static_cast<float>( J[j11] * J[j22] - J[j12] * J[j21] ) };
+      static_cast<double>( J[j21] * J[j32] - J[j22] * J[j31] ) ,
+      static_cast<double>( J[j12] * J[j31] - J[j11] * J[j32] ) ,
+      static_cast<double>( J[j11] * J[j22] - J[j12] * J[j21] ) };
 
-    const float detJ = J[j11] * invJ[j11] +
+    const double detJ = J[j11] * invJ[j11] +
                        J[j21] * invJ[j12] +
                        J[j31] * invJ[j13] ;
 
-    const float detJinv = 1.0 / detJ ;
+    const double detJinv = 1.0 / detJ ;
 
     for ( unsigned i = 0 ; i < TensorDim ; ++i ) { invJ[i] *= detJinv ; }
 
     // Transform gradients:
 
     for( unsigned i = 0; i < FunctionCount ; ++i ) {
-      const float g0 = grad[0][i];
-      const float g1 = grad[1][i];
-      const float g2 = grad[2][i];
+      const double g0 = grad[0][i];
+      const double g1 = grad[1][i];
+      const double g2 = grad[2][i];
 
       dpsidx[i] = g0 * invJ[j11] + g1 * invJ[j12] + g2 * invJ[j13];
       dpsidy[i] = g0 * invJ[j21] + g1 * invJ[j22] + g2 * invJ[j23];
@@ -1074,13 +1110,13 @@ public:
   KOKKOS_INLINE_FUNCTION
   void contributeResidualJacobian(
     const local_scalar_type dof_values[] ,
-    const float  dpsidx[] ,
-    const float  dpsidy[] ,
-    const float  dpsidz[] ,
-    const float  detJ ,
+    const double  dpsidx[] ,
+    const double  dpsidy[] ,
+    const double  dpsidz[] ,
+    const double  detJ ,
     const local_scalar_type  coeff_k ,
-    const float  integ_weight ,
-    const float  bases_vals[] ,
+    const double  integ_weight ,
+    const double  bases_vals[] ,
     local_scalar_type  elem_res[] ,
     local_scalar_type  elem_mat[][ FunctionCount ] ) const
   {
@@ -1105,10 +1141,10 @@ public:
 
     for ( unsigned m = 0; m < FunctionCount; ++m) {
       local_scalar_type * const mat = elem_mat[m] ;
-      const float bases_val_m = bases_vals[m];
-      const float dpsidx_m    = dpsidx[m] ;
-      const float dpsidy_m    = dpsidy[m] ;
-      const float dpsidz_m    = dpsidz[m] ;
+      const double bases_val_m = bases_vals[m];
+      const double dpsidx_m    = dpsidx[m] ;
+      const double dpsidy_m    = dpsidy[m] ;
+      const double dpsidz_m    = dpsidz[m] ;
 
       elem_res[m] += k_detJ_weight * ( dpsidx_m * gradx_at_pt +
                                        dpsidy_m * grady_at_pt +
@@ -1191,9 +1227,9 @@ public:
 
 
     for ( unsigned i = 0 ; i < IntegrationCount ; ++i ) {
-      float dpsidx[ FunctionCount ] ;
-      float dpsidy[ FunctionCount ] ;
-      float dpsidz[ FunctionCount ] ;
+      double dpsidx[ FunctionCount ] ;
+      double dpsidy[ FunctionCount ] ;
+      double dpsidz[ FunctionCount ] ;
 
       local_scalar_type coeff_k = 0 ;
 
@@ -1216,7 +1252,7 @@ public:
         coeff_k = coeff_function(pt_x,pt_y,pt_z,ensemble_rank);
       }
 
-      const float detJ =
+      const double detJ =
         transform_gradients( elem_data.gradients[i] , x , y , z ,
                              dpsidx , dpsidy , dpsidz );
 
@@ -1285,10 +1321,10 @@ template< class FixtureType , class SparseMatrixType >
 class DirichletComputation ;
 
 template< class DeviceType , BoxElemPart::ElemOrder Order , class CoordinateMap ,
-          typename ScalarType , typename OrdinalType , class MemoryTraits , typename SizeType >
+          typename ScalarType >
 class DirichletComputation<
   Kokkos::Example::BoxElemFixture< DeviceType , Order , CoordinateMap > ,
-  Kokkos::CrsMatrix< ScalarType , OrdinalType , DeviceType , MemoryTraits , SizeType > >
+  Kokkos::Example::FENL::CrsMatrix< ScalarType , DeviceType > >
 {
 public:
 
@@ -1299,7 +1335,7 @@ public:
   typedef DeviceType   device_type ;
   typedef ScalarType   scalar_type ;
 
-  typedef Kokkos::CrsMatrix< ScalarType , OrdinalType , DeviceType , MemoryTraits , SizeType >  sparse_matrix_type ;
+  typedef Kokkos::Example::FENL::CrsMatrix< ScalarType , DeviceType >  sparse_matrix_type ;
   typedef typename sparse_matrix_type::StaticCrsGraphType                                       sparse_graph_type ;
   typedef typename sparse_matrix_type::values_type matrix_values_type ;
   typedef Kokkos::View< scalar_type* , device_type > vector_type ;
@@ -1328,7 +1364,7 @@ public:
   const unsigned            bc_plane ;
   const unsigned            node_count ;
         bool                init ;
-  const Kokkos::DeviceConfig dev_config ;
+  const Kokkos::Example::FENL::DeviceConfig dev_config ;
 
 
   DirichletComputation( const mesh_type          & arg_mesh ,
@@ -1338,7 +1374,7 @@ public:
                         const unsigned             arg_bc_plane ,
                         const bc_scalar_type       arg_bc_lower_value ,
                         const bc_scalar_type       arg_bc_upper_value ,
-                        const Kokkos::DeviceConfig arg_dev_config )
+                        const Kokkos::Example::FENL::DeviceConfig arg_dev_config )
     : node_coords( arg_mesh.node_coord() )
     , solution(    arg_solution )
     , jacobian(    arg_jacobian )
@@ -1495,8 +1531,8 @@ public:
   //------------------------------------
 
    KOKKOS_INLINE_FUNCTION
-  float compute_detJ(
-    const float grad[][ ElemNodeCount ] , // Gradient of bases master element
+  double compute_detJ(
+    const double grad[][ ElemNodeCount ] , // Gradient of bases master element
     const double x[] ,
     const double y[] ,
     const double z[] ) const
@@ -1514,9 +1550,9 @@ public:
       const double x2 = y[i] ;
       const double x3 = z[i] ;
 
-      const float g1 = grad[0][i] ;
-      const float g2 = grad[1][i] ;
-      const float g3 = grad[2][i] ;
+      const double g1 = grad[0][i] ;
+      const double g2 = grad[1][i] ;
+      const double g3 = grad[2][i] ;
 
       J[j11] += g1 * x1 ;
       J[j12] += g1 * x2 ;
@@ -1533,20 +1569,20 @@ public:
 
     // Inverse jacobian:
 
-    float invJ[ TensorDim ] = {
-      static_cast<float>( J[j22] * J[j33] - J[j23] * J[j32] ) ,
-      static_cast<float>( J[j13] * J[j32] - J[j12] * J[j33] ) ,
-      static_cast<float>( J[j12] * J[j23] - J[j13] * J[j22] ) ,
+    double invJ[ TensorDim ] = {
+      static_cast<double>( J[j22] * J[j33] - J[j23] * J[j32] ) ,
+      static_cast<double>( J[j13] * J[j32] - J[j12] * J[j33] ) ,
+      static_cast<double>( J[j12] * J[j23] - J[j13] * J[j22] ) ,
 
-      static_cast<float>( J[j23] * J[j31] - J[j21] * J[j33] ) ,
-      static_cast<float>( J[j11] * J[j33] - J[j13] * J[j31] ) ,
-      static_cast<float>( J[j13] * J[j21] - J[j11] * J[j23] ) ,
+      static_cast<double>( J[j23] * J[j31] - J[j21] * J[j33] ) ,
+      static_cast<double>( J[j11] * J[j33] - J[j13] * J[j31] ) ,
+      static_cast<double>( J[j13] * J[j21] - J[j11] * J[j23] ) ,
 
-      static_cast<float>( J[j21] * J[j32] - J[j22] * J[j31] ) ,
-      static_cast<float>( J[j12] * J[j31] - J[j11] * J[j32] ) ,
-      static_cast<float>( J[j11] * J[j22] - J[j12] * J[j21] ) };
+      static_cast<double>( J[j21] * J[j32] - J[j22] * J[j31] ) ,
+      static_cast<double>( J[j12] * J[j31] - J[j11] * J[j32] ) ,
+      static_cast<double>( J[j11] * J[j22] - J[j12] * J[j21] ) };
 
-    const float detJ = J[j11] * invJ[j11] +
+    const double detJ = J[j11] * invJ[j11] +
                        J[j21] * invJ[j12] +
                        J[j31] * invJ[j13] ;
 
@@ -1556,9 +1592,9 @@ public:
   KOKKOS_INLINE_FUNCTION
   value_type contributeResponse(
     const value_type dof_values[] ,
-    const float  detJ ,
-    const float  integ_weight ,
-    const float  bases_vals[] ) const
+    const double  detJ ,
+    const double  integ_weight ,
+    const double  bases_vals[] ) const
   {
     // $$ g_i = \int_{\Omega} T^2 d \Omega $$
 
@@ -1596,7 +1632,7 @@ public:
 
     for ( unsigned i = 0 ; i < IntegrationCount ; ++i ) {
 
-      const float detJ = compute_detJ( elem_data.gradients[i] , x , y , z );
+      const double detJ = compute_detJ( elem_data.gradients[i] , x , y , z );
 
       response += contributeResponse( val , detJ , elem_data.weights[i] ,
                                       elem_data.values[i] );

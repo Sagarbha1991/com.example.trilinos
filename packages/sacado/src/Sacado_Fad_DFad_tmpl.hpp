@@ -94,8 +94,8 @@ namespace Sacado {
        * Initializes value to \c x and derivative array 0 of length \c sz
        */
       KOKKOS_INLINE_FUNCTION
-      DFad(const int sz, const ValueT& x) :
-        ExprType(sz,x) {}
+      DFad(const int sz, const ValueT& x, const bool zero_out = true) :
+        ExprType(sz,x,zero_out) {}
 
       //! Constructor with size \c sz, index \c i, and value \c x
       /*!
@@ -259,6 +259,11 @@ namespace Sacado {
     };
 
   } // namespace Fad
+
+  template <typename T>
+  struct IsFad< FAD_NS::DFad<T> > {
+    static const bool value = true;
+  };
 
   template <typename T>
   struct IsExpr< FAD_NS::DFad<T> > {

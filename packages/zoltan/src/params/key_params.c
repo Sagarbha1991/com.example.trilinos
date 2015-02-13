@@ -454,10 +454,10 @@ void Zoltan_Print_Configuration(char *indent)
   if (indent == NULL){
     indent = "";
   }
-  printf("\n%sZOLTAN_ID_TYPE: %s (%zd bytes)\n",
-    indent, zoltan_id_datatype_name, sizeof(ZOLTAN_ID_TYPE));
-  printf("%sZOLTAN_GNO_TYPE: %s, (%zd bytes)\n",
-    indent, zoltan_gno_datatype_name, sizeof(ZOLTAN_GNO_TYPE));
+  printf("\n%sZOLTAN_ID_TYPE: %s (%lu bytes)\n",
+    indent, zoltan_id_datatype_name, (unsigned long)(sizeof(ZOLTAN_ID_TYPE)));
+  printf("%sZOLTAN_GNO_TYPE: %s, (%lu bytes)\n",
+    indent, zoltan_gno_datatype_name, (unsigned long)(sizeof(ZOLTAN_GNO_TYPE)));
   printf("%sMPI_Datatype for ZOLTAN_ID_TYPE: %s\n", indent,
     zoltan_mpi_id_datatype_name);
   printf("%sMPI_Datatype for ZOLTAN_GNO_TYPE: %s\n", indent, 
@@ -490,7 +490,7 @@ void Zoltan_Print_Configuration(char *indent)
 #ifdef ZOLTAN_PTSCOTCH
   printf("%sThird party library: PTScotch ", indent);
   #ifdef SCOTCH_VERSION
-    printf("version %d.%d.%d\n", 
+    printf("version %d_%d_%d\n", 
            SCOTCH_VERSION, SCOTCH_RELEASE, SCOTCH_PATCHLEVEL);
   #endif
 #endif
@@ -498,7 +498,7 @@ void Zoltan_Print_Configuration(char *indent)
 #ifdef ZOLTAN_SCOTCH
   printf("%sThird party library: Scotch ", indent);
   #ifdef SCOTCH_VERSION
-    printf("version %d.%d.%d\n", 
+    printf("version %d_%d_%d\n", 
            SCOTCH_VERSION, SCOTCH_RELEASE, SCOTCH_PATCHLEVEL);
   #endif
 #endif

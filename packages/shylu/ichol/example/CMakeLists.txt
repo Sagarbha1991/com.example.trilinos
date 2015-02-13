@@ -1,0 +1,27 @@
+
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+
+SET(SOURCES "")
+
+FILE(GLOB SOURCES *.cpp)
+
+SET(LIBRARIES shyluichol)
+
+#TRIBITS_ADD_EXECUTABLE(
+#  qthread_example
+#  SOURCES qthread.cpp
+#  COMM serial mpi
+#  )
+
+TRIBITS_ADD_EXECUTABLE(
+  ichol_strong_scale
+  SOURCES ichol_strong_scale.cpp
+  COMM serial mpi
+  )
+
+#TRIBITS_COPY_FILES_TO_BINARY_DIR(ShyLUICHOL_SimpleSparseTest_File
+#        SOURCE_FILES test.mtx
+#        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+#        DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}
+#)

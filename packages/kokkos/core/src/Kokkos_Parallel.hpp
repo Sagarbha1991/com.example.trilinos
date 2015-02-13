@@ -52,6 +52,7 @@
 #include <Kokkos_View.hpp>
 #include <Kokkos_ExecPolicy.hpp>
 
+#include <impl/Kokkos_AllocationTracker.hpp>
 #include <impl/Kokkos_Tags.hpp>
 #include <impl/Kokkos_Traits.hpp>
 #include <impl/Kokkos_FunctorAdapter.hpp>
@@ -201,7 +202,7 @@ void parallel_for( const size_t        work_count ,
     Impl::FunctorPolicyExecutionSpace< FunctorType , void >::execution_space
       execution_space ;
   typedef RangePolicy< execution_space > policy ;
-  (void) Impl::ParallelFor< FunctorType , policy >( functor , policy(0,work_count) );
+  (void) Impl::ParallelFor< FunctorType , policy >( Impl::CopyWithoutTracking::apply(functor) , policy(0,work_count) );
 }
 
 //----------------------------------------------------------------------------
@@ -248,7 +249,7 @@ void parallel_reduce( const ExecPolicy  & policy
                     , typename Impl::enable_if< ! Impl::is_integral< ExecPolicy >::value >::type * = 0
                     )
 {
-  (void) Impl::ParallelReduce< FunctorType , ExecPolicy >( functor , policy );
+  (void) Impl::ParallelReduce< FunctorType , ExecPolicy >( Impl::CopyWithoutTracking::apply(functor) , policy );
 }
 
 // integral range policy
@@ -277,7 +278,7 @@ void parallel_reduce( const size_t        work_count
               >
     result_view ;
 
-  (void) Impl::ParallelReduce< FunctorType , policy >( functor , policy(0,work_count) , result_view );
+  (void) Impl::ParallelReduce< FunctorType , policy >( Impl::CopyWithoutTracking::apply(functor) , policy(0,work_count) , Impl::CopyWithoutTracking::apply(result_view) );
 }
 
 // general policy and view ouput
@@ -288,20 +289,31 @@ void parallel_reduce( const ExecPolicy  & policy
                     , const ViewType    & result_view
                     , typename Impl::enable_if<
                       ( Impl::is_view<ViewType>::value && ! Impl::is_integral< ExecPolicy >::value
+#ifdef KOKKOS_HAVE_CUDA
+                        && ! Impl::is_same<typename ExecPolicy::execution_space,Kokkos::Cuda>::value
+#endif
                       )>::type * = 0 )
 {
-  (void) Impl::ParallelReduce< FunctorType, ExecPolicy >( functor , policy , result_view );
+  (void) Impl::ParallelReduce< FunctorType, ExecPolicy >( Impl::CopyWithoutTracking::apply(functor) , policy , Impl::CopyWithoutTracking::apply(result_view) );
 }
 
 // general policy and pod or array of pod output
 template< class ExecPolicy , class FunctorType >
-inline
 void parallel_reduce( const ExecPolicy  & policy
                     , const FunctorType & functor
+#ifdef KOKKOS_HAVE_CUDA
                     , typename Impl::enable_if<
-                      ( ! Impl::is_integral< ExecPolicy >::value )
-                      , typename Kokkos::Impl::FunctorValueTraits< FunctorType , typename ExecPolicy::work_tag >::reference_type
-                      >::type result_ref )
+                      ( ! Impl::is_integral< ExecPolicy >::value &&
+                        ! Impl::is_same<typename ExecPolicy::execution_space,Kokkos::Cuda>::value )
+                      , typename Kokkos::Impl::FunctorValueTraits< FunctorType , typename ExecPolicy::work_tag >::reference_type>::type result_ref
+                      , typename Impl::enable_if<! Impl::is_same<typename ExecPolicy::execution_space,Kokkos::Cuda>::value >::type* = 0
+                      )
+#else
+                      , typename Impl::enable_if<
+                        ( ! Impl::is_integral< ExecPolicy >::value)
+                        , typename Kokkos::Impl::FunctorValueTraits< FunctorType , typename ExecPolicy::work_tag >::reference_type
+                        >::type result_ref )
+#endif
 {
   typedef Kokkos::Impl::FunctorValueTraits< FunctorType , typename ExecPolicy::work_tag >  ValueTraits ;
   typedef Kokkos::Impl::FunctorValueOps<    FunctorType , typename ExecPolicy::work_tag >  ValueOps ;
@@ -322,7 +334,7 @@ void parallel_reduce( const ExecPolicy  & policy
                , ValueTraits::value_count( functor )
                );
 
-  (void) Impl::ParallelReduce< FunctorType, ExecPolicy >( functor , policy , result_view );
+  (void) Impl::ParallelReduce< FunctorType, ExecPolicy >( Impl::CopyWithoutTracking::apply(functor) , policy , Impl::CopyWithoutTracking::apply(result_view) );
 }
 
 // integral range policy and view ouput
@@ -331,7 +343,13 @@ inline
 void parallel_reduce( const size_t        work_count
                     , const FunctorType & functor
                     , const ViewType    & result_view
-                    , typename Impl::enable_if<( Impl::is_view<ViewType>::value )>::type * = 0 )
+                    , typename Impl::enable_if<( Impl::is_view<ViewType>::value
+#ifdef KOKKOS_HAVE_CUDA
+                        && ! Impl::is_same<
+                          typename Impl::FunctorPolicyExecutionSpace< FunctorType , void >::execution_space,
+                          Kokkos::Cuda>::value
+#endif
+                        )>::type * = 0 )
 {
   typedef typename
     Impl::FunctorPolicyExecutionSpace< FunctorType , void >::execution_space
@@ -339,15 +357,22 @@ void parallel_reduce( const size_t        work_count
 
   typedef RangePolicy< execution_space > ExecPolicy ;
 
-  (void) Impl::ParallelReduce< FunctorType, ExecPolicy >( functor , ExecPolicy(0,work_count) , result_view );
+  (void) Impl::ParallelReduce< FunctorType, ExecPolicy >( Impl::CopyWithoutTracking::apply(functor) , ExecPolicy(0,work_count) , Impl::CopyWithoutTracking::apply(result_view) );
 }
 
 // integral range policy and pod or array of pod output
 template< class FunctorType >
 inline
-void parallel_reduce( const size_t        work_count ,
-                      const FunctorType & functor ,
-                      typename Kokkos::Impl::FunctorValueTraits< FunctorType , void >::reference_type result )
+void parallel_reduce( const size_t        work_count
+                    , const FunctorType & functor
+                    , typename Kokkos::Impl::FunctorValueTraits< FunctorType , void >::reference_type result
+                    , typename Impl::enable_if< true
+#ifdef KOKKOS_HAVE_CUDA
+                              && ! Impl::is_same<
+                             typename Impl::FunctorPolicyExecutionSpace< FunctorType , void >::execution_space,
+                             Kokkos::Cuda>::value
+#endif
+                     >::type * = 0 )
 {
   typedef Kokkos::Impl::FunctorValueTraits< FunctorType , void >  ValueTraits ;
   typedef Kokkos::Impl::FunctorValueOps<    FunctorType , void >  ValueOps ;
@@ -374,7 +399,7 @@ void parallel_reduce( const size_t        work_count ,
                , ValueTraits::value_count( functor )
                );
 
-  (void) Impl::ParallelReduce< FunctorType , policy >( functor , policy(0,work_count) , result_view );
+  (void) Impl::ParallelReduce< FunctorType , policy >( Impl::CopyWithoutTracking::apply(functor) , policy(0,work_count) , Impl::CopyWithoutTracking::apply(result_view) );
 }
 
 } // namespace Kokkos
@@ -545,7 +570,7 @@ void parallel_scan( const ExecutionPolicy & policy
                   , typename Impl::enable_if< ! Impl::is_integral< ExecutionPolicy >::value >::type * = 0
                   )
 {
-  Impl::ParallelScan< FunctorType , ExecutionPolicy > scan( functor , policy );
+  Impl::ParallelScan< FunctorType , ExecutionPolicy > scan( Impl::CopyWithoutTracking::apply(functor) , policy );
 }
 
 template< class FunctorType >
@@ -559,7 +584,7 @@ void parallel_scan( const size_t        work_count ,
 
   typedef Kokkos::RangePolicy< execution_space > policy ;
 
-  (void) Impl::ParallelScan< FunctorType , policy >( functor , policy(0,work_count) );
+  (void) Impl::ParallelScan< FunctorType , policy >( Impl::CopyWithoutTracking::apply(functor) , policy(0,work_count) );
 }
 
 } // namespace Kokkos

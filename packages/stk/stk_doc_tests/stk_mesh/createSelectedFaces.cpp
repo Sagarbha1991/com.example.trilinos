@@ -54,6 +54,7 @@ namespace
     // ============================================================
     // INITIALIZATION
     MPI_Comm communicator = MPI_COMM_WORLD;
+    if (stk::parallel_machine_size(communicator) != 1) { return; }
     stk::io::StkMeshIoBroker stkIo(communicator);
 
     // Generate a mesh containing 1 hex part and 6 shell parts
@@ -84,7 +85,7 @@ namespace
     std::vector<unsigned> entityCounts;
     stk::mesh::count_entities(allEntities, stkIo.bulk_data(), entityCounts);
     EXPECT_EQ( 896u, entityCounts[stk::topology::ELEMENT_RANK]);
-    EXPECT_EQ( 384u, entityCounts[stk::topology::FACE_RANK]);
+    EXPECT_EQ( 768u, entityCounts[stk::topology::FACE_RANK]);
 
     // Edges are not generated, only faces.
     EXPECT_EQ(0u,   entityCounts[stk::topology::EDGE_RANK]);

@@ -51,6 +51,7 @@
 #include "stk_mesh/base/Selector.hpp"   // for Selector, operator&, etc
 #include "stk_mesh/base/Types.hpp"      // for BucketVector, EntityRank
 #include "stk_topology/topology.hpp"    // for topology, etc
+#include <stk_io/StkMeshIoBroker.hpp>   // for StkMeshIoBroker
 
 using stk::mesh::MetaData;
 
@@ -99,7 +100,7 @@ namespace {
     size_t exp_elem = 6 * nx * ny * nz;
     return exp_elem;
   }
-}
+
 
 TEST ( UnitTestCreateFaces, Hex_2x1x1 )
 {
@@ -725,7 +726,7 @@ TEST ( UnitTestCreateFaces, Heterogeneous )
 
   /*
    * Total elements = 21 = 3 + 3 + 3 + 2 + 3 + 3
-   * Total faces    = 39 = 6 front + 6 back + 9 perimeter + 6 internal + 7 from tet + 5 from pyr
+   * Total faces    = 45 = 6 front + 6 back + 9 perimeter + 6 internal + 7 from tet + 5 from pyr + 6 from extra (2sided) shells
    */
   {
     std::vector<size_t> counts ;
@@ -745,10 +746,9 @@ TEST ( UnitTestCreateFaces, Heterogeneous )
 
     EXPECT_EQ( 21u, counts[node_rank] ); // nodes
     EXPECT_EQ( 0u,  counts[edge_rank] ); // edges
-    EXPECT_EQ( 39u, counts[face_rank] ); // faces
+    EXPECT_EQ( 45u, counts[face_rank] ); // faces
     EXPECT_EQ( 17u, counts[elem_rank] ); // elements
   }
-
 }
 
 TEST ( UnitTestCreateFaces, Degenerate )
@@ -819,6 +819,7 @@ TEST ( UnitTestCreateFaces, Degenerate )
     EXPECT_EQ(11u, counts[face_rank] ); // faces
     EXPECT_EQ( 2u, counts[elem_rank] ); // elements
   }
-
 }
+
+} //end empty namespace
 

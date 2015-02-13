@@ -137,23 +137,23 @@ int Zoltan_Preprocess_Graph(
   ZOLTAN_GNO_TYPE *sum, nobj;
   MPI_Datatype zoltan_gno_mpi_type;
 
-  char add_obj_weight[MAX_PARAM_STRING_LEN+1];
+  char add_obj_weight[MAX_PARAM_STRING_LEN];
 
   ZOLTAN_TRACE_ENTER(zz, yo);
 
   zoltan_gno_mpi_type = Zoltan_mpi_gno_type();
 
   if (zz->Debug_Level > 0 && zz->Debug_Proc == zz->Proc){
-    printf("Third party library real type is %zd-byte real number\n",
-           sizeof(realtype));
-    printf("Third party library index type is %zd-byte integer\n",
-           sizeof(indextype));
+    printf("Third party library real type is %lu-byte real number\n",
+           (unsigned long) (sizeof(realtype)));
+    printf("Third party library index type is %lu-byte integer\n",
+           (unsigned long) (sizeof(indextype)));
 #ifdef TPL_INTEGRAL_WEIGHT
-    printf("Third party library weight type is %zd-byte integer\n",
-           sizeof(weighttype));
+    printf("Third party library weight type is %lu-byte integer\n",
+           (unsigned long) (sizeof(weighttype)));
 #else
-    printf("Third party library weight type is %zd-byte floating point value\n",
-           sizeof(weighttype));
+    printf("Third party library weight type is %lu-byte floating point value\n",
+           (unsigned long) (sizeof(weighttype)));
 #endif    
 
 #if __parmetis__ + __metis__ + __ptscotch__ + __scotch__ > 1
@@ -529,8 +529,6 @@ Zoltan_Preprocess_Add_Weight (ZZ *zz,
   int ierr = ZOLTAN_OK;
   int i,j;
 
-  vwgt_new = (weighttype *)ZOLTAN_MALLOC((gr->obj_wgt_dim+1)*gr->num_obj
-                                            * sizeof(weighttype));
   if ((!strcasecmp(add_obj_weight, "UNIT")) ||
       (!strcasecmp(add_obj_weight, "VERTICES"))){
     add_type = 1;
@@ -546,6 +544,8 @@ Zoltan_Preprocess_Add_Weight (ZZ *zz,
     add_type = 0;
   }
   if (add_type){
+    vwgt_new = (weighttype *)ZOLTAN_MALLOC((gr->obj_wgt_dim+1)*gr->num_obj
+                                            * sizeof(weighttype));
     if (prt != NULL) {
       /* update part_sizes array */
       ierr = Zoltan_LB_Add_Part_Sizes_Weight(zz,
@@ -1099,7 +1099,7 @@ int ierr = ZOLTAN_OK;
     *new_part_sizes = (realtype *) ZOLTAN_MALLOC(new_part_dim
                                                * zz->LB.Num_Global_Parts
                                                * sizeof(realtype));
-    if (!new_part_sizes) {
+    if (!(*new_part_sizes)) {
       ierr = ZOLTAN_MEMERR;
       goto End;
     }

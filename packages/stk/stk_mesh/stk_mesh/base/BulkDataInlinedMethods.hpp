@@ -43,16 +43,6 @@ size_t get_connectivity( const BulkData & mesh,
                          std::vector<Permutation> & permutation_scratch_storage );
 
 
-/** \brief  Is in owned closure of the given process,
- *          typically the local process.
- */
-inline
-bool in_owned_closure(const BulkData& mesh, const Entity entity , int proc )
-{
-  const bool same_proc = mesh.parallel_rank() == proc;
-  return same_proc && mesh.owned_closure(entity);
-}
-
  /** \brief  Comparator functor for entities compares the entities' keys */
 inline
 EntityLess::EntityLess(const BulkData& mesh) : m_mesh(&mesh) {}
@@ -456,7 +446,7 @@ int BulkData::entity_comm_map_owner(const EntityKey & key) const
 {
   const int owner_rank = m_entity_comm_map.owner_rank(key);
   ThrowAssertMsg(owner_rank == InvalidProcessRank || owner_rank == parallel_owner_rank(get_entity(key)),
-                 "Expect entity " << key.id() << " to have owner " <<
+                 "Expected entity " << key.id() << " with rank " << key.rank() << " to have owner " <<
                  parallel_owner_rank(get_entity(key)) << " but in comm map, found " << owner_rank);
   return owner_rank;
 }
@@ -767,17 +757,34 @@ inline EntityState BulkData::state(Entity entity) const
   return static_cast<EntityState>(m_entity_states[entity.local_offset()]);
 }
 
+#ifndef STK_BUILT_IN_SIERRA // DELETE ifdef BTW 2015-02-13 and 2015-03-04
 inline void BulkData::mark_entity(Entity entity, entitySharing sharedType)
 {
-    m_mark_entity[entity.local_offset()] = static_cast<int>(sharedType);
+    this->internal_mark_entity(entity,sharedType);
 }
 
 inline BulkData::entitySharing BulkData::is_entity_marked(Entity entity) const
 {
-    return static_cast<entitySharing>(m_mark_entity[entity.local_offset()]);
+    return this->internal_is_entity_marked(entity);
 }
 
 inline bool BulkData::add_node_sharing_called() const
+{
+  return this->internal_add_node_sharing_called();
+}
+#endif // STK_BUILT_IN_SIERRA
+
+inline void BulkData::internal_mark_entity(Entity entity, entitySharing sharedType)
+{
+    m_mark_entity[entity.local_offset()] = static_cast<int>(sharedType);
+}
+
+inline BulkData::entitySharing BulkData::internal_is_entity_marked(Entity entity) const
+{
+    return static_cast<entitySharing>(m_mark_entity[entity.local_offset()]);
+}
+
+inline bool BulkData::internal_add_node_sharing_called() const
 {
   return m_add_node_sharing_called;
 }
