@@ -116,11 +116,9 @@ public:
   typedef typename InputTraits<User>::node_t                node_t;
   typedef User                                              user_t;
   typedef User                                              userCoord_t;
-  typedef Tpetra::CrsMatrix<scalar_t, lno_t, gno_t, node_t> sparse_matrix_type;
-  typedef Teuchos::ScalarTraits<scalar_t>                   STS;
+  typedef int nonzero_t;  // adjacency matrix doesn't need scalar_t
+  typedef Tpetra::CrsMatrix<nonzero_t,lno_t,gno_t,node_t>   sparse_matrix_type;
   typedef Tpetra::Map<lno_t, gno_t, node_t>                 map_type;
-  typedef Tpetra::Export<lno_t, gno_t, node_t>              export_type;
-  typedef Tpetra::CrsGraph<lno_t, gno_t, node_t>            sparse_graph_type;
 #endif
 
   enum BaseAdapterType adapterType() const {return MeshAdapterType;}
@@ -260,8 +258,8 @@ public:
                                     const lno_t *&offsets,
                                     const zgid_t *&adjacencyIds) const
   {
-    typedef Tpetra::global_size_t GST;
-    const GST INVALID = Teuchos::OrdinalTraits<GST>::invalid ();
+    //typedef Tpetra::global_size_t GST;
+    //const GST INVALID = Teuchos::OrdinalTraits<GST>::invalid ();
 
     /* Find the adjacency for a nodal based decomposition */
     size_t nadj = 0;
@@ -274,8 +272,9 @@ public:
       using Teuchos::rcp;
 
       // Get the default communicator and Kokkos Node instance
-      // TODO:  Default communicator may not be correct here
-      RCP<const Comm<gno_t> > comm =
+      // TODO:  Default communicator is not correct here; need to get
+      // TODO:  communicator from the problem
+      RCP<const Comm<int> > comm =
         DefaultPlatform::getDefaultPlatform ().getComm ();
 
       // Get node-element connectivity
@@ -290,8 +289,7 @@ public:
       zgid_t const *throughIds=NULL;
       getIDsViewOf(through, throughIds);
 
-      int LocalNumIDs = getLocalNumOf(sourcetarget);
-      int LocalNumAdjs = getLocalNumAdjs(sourcetarget, through);
+      size_t LocalNumIDs = getLocalNumOf(sourcetarget);
 
       /***********************************************************************/
       /************************* BUILD MAPS FOR ADJS *************************/
@@ -302,13 +300,13 @@ public:
       RCP<const map_type> throughMapG;
 
       // count owned nodes
-      int LocalNumOfNodes = getLocalNumOf(through);
+      size_t LocalNumOfThrough = getLocalNumOf(through);
 
       // Build a list of the global sourcetarget ids...
       sourcetargetGIDs.resize (LocalNumIDs);
       gno_t min[2];
       min[0] = as<gno_t> (Ids[0]);
-      for (int i = 0; i < LocalNumIDs; ++i) {
+      for (size_t i = 0; i < LocalNumIDs; ++i) {
         sourcetargetGIDs[i] = as<gno_t> (Ids[i]);
 
 	if (sourcetargetGIDs[i] < min[0]) {
@@ -318,7 +316,7 @@ public:
 
       // min(throughIds[i])
       min[1] = as<gno_t> (throughIds[0]);
-      for (int i = 0; i < LocalNumOfNodes; ++i) {
+      for (size_t i = 0; i < LocalNumOfThrough; ++i) {
 	gno_t tmp = as<gno_t> (throughIds[i]);
 
 	if (tmp < min[1]) {
@@ -326,97 +324,55 @@ public:
 	}
       }
 
-      gno_t gmin[2] = {1, 1};
-      //Teuchos::reduceAll<gno_t>(comm, Teuchos::REDUCE_MIN, 2, min, gmin);
+      gno_t gmin[2];
+      Teuchos::reduceAll<int, gno_t>(*comm, Teuchos::REDUCE_MIN, 2, min, gmin);
 
       //Generate Map for sourcetarget.
-      sourcetargetMapG = rcp(new map_type(INVALID, sourcetargetGIDs(), gmin[0],
-					  comm));
+      sourcetargetMapG = rcp(new map_type(getGlobalNumOf(sourcetarget),
+					  sourcetargetGIDs(), gmin[0], comm));
 
       //Generate Map for through.
+// TODO
+// TODO Could check for max through id as well, and if all through ids are
+// TODO in gmin to gmax, then default constructors works below.
+// TODO Otherwise, may need a constructor that is not one-to-one containing
+// TODO all through entities on processor, followed by call to createOneToOne
+// TODO
+
       throughMapG = rcp (new map_type(getGlobalNumOf(through), gmin[1], comm));
 
       /***********************************************************************/
       /************************* BUILD GRAPH FOR ADJS ************************/
       /***********************************************************************/
 
-      RCP<sparse_graph_type> adjsGraph;
+      RCP<sparse_matrix_type> adjsMatrix;
 
       // Construct Tpetra::CrsGraph objects.
-      adjsGraph = rcp (new sparse_graph_type (sourcetargetMapG, 0));
+      adjsMatrix = rcp (new sparse_matrix_type (sourcetargetMapG, 0));
 
-      for (int localElement = 0; localElement < LocalNumIDs; ++localElement) {
+      nonzero_t justOne = 1;
+      ArrayView<nonzero_t> justOneAV = Teuchos::arrayView (&justOne, 1);
+
+      for (size_t localElement=0; localElement<LocalNumIDs; ++localElement){
 
         //globalRow for Tpetra Graph
         global_size_t globalRowT = as<global_size_t> (Ids[localElement]);
 
-        int NumAdjs;
-        if (localElement + 1 < LocalNumIDs) {
-          NumAdjs = offsets[localElement+1];
-        } else {
-          NumAdjs = LocalNumAdjs;
-        }
-
-        for (int j = offsets[localElement]; j < NumAdjs; ++j) {
 // KDD can we insert all adjacencies at once instead of one at a time
 // (since they are contiguous in adjacencyIds)?
+// KDD maybe not until we get rid of zgid_t, as we need the conversion to gno_t.
+        for (lno_t j=offsets[localElement]; j<offsets[localElement+1]; ++j){
           gno_t globalCol = as<gno_t> (adjacencyIds[j]);
           //create ArrayView globalCol object for Tpetra
           ArrayView<gno_t> globalColAV = Teuchos::arrayView (&globalCol,1);
 
           //Update Tpetra adjs Graph
-          adjsGraph->insertGlobalIndices(globalRowT,globalColAV);
-        }// *** node loop ***
-      }// *** element loop ***
+          adjsMatrix->insertGlobalValues(globalRowT,globalColAV,justOneAV);
+        }// *** through loop ***
+      }// *** source loop ***
 
       //Fill-complete adjs Graph
-      adjsGraph->fillComplete (throughMapG, adjsGraph->getRowMap());
-
-      // Construct adjs matrix.
-      RCP<sparse_matrix_type> adjsMatrix =
-        rcp (new sparse_matrix_type (adjsGraph.getConst ()));
-
-      adjsMatrix->setAllToScalar (STS::zero ());
-
-      // Find the local column numbers
-      RCP<const map_type> ColMap = adjsMatrix->getColMap ();
-      RCP<const map_type> globalMap =
-        rcp (new map_type (adjsMatrix->getGlobalNumCols (), 0, comm,
-                           Tpetra::GloballyDistributed));
-
-      // Create the exporter from this process' column Map to the global
-      // 1-1 column map. (???)
-      RCP<const export_type> bdyExporter =
-        rcp (new export_type (ColMap, globalMap));
-
-      // Create a vector of global column indices to which we will export
-      RCP<Tpetra::Vector<gno_t, lno_t, gno_t, node_t> > globColsToZeroT =
-        rcp (new Tpetra::Vector<gno_t, lno_t, gno_t, node_t> (globalMap));
-
-      // Create a vector of local column indices from which we will export
-      RCP<Tpetra::Vector<lno_t, lno_t, gno_t, node_t> > myColsToZeroT =
-        rcp (new Tpetra::Vector<lno_t, lno_t, gno_t, node_t> (ColMap));
-
-      myColsToZeroT->putScalar (0);
-
-      // Set to 1 all local columns corresponding to the local rows specified.
-      for (int i = 0; i < LocalNumIDs; ++i) {
-        const gno_t globalRow =
-	  adjsMatrix->getRowMap()->getGlobalElement(Ids[i]);
-        const lno_t localCol =
-	  adjsMatrix->getColMap()->getLocalElement(globalRow);
-        // Tpetra::Vector<int, ...> works just like Tpetra::Vector<double, ...>
-        // Epetra has a separate Epetra_IntVector class for ints.
-        myColsToZeroT->replaceLocalValue (localCol, 1);
-      }
-
-      // Export to the global column map.
-      globColsToZeroT->doExport (*myColsToZeroT, *bdyExporter, Tpetra::ADD);
-      // Import from the global column map to the local column map.
-      myColsToZeroT->doImport (*globColsToZeroT, *bdyExporter, Tpetra::INSERT);
-
-      // We're done modifying the adjs matrix.
-      adjsMatrix->fillComplete(throughMapG, adjsMatrix->getRowMap());
+      adjsMatrix->fillComplete (throughMapG, adjsMatrix->getRowMap());
 
       // Form 2ndAdjs
       RCP<sparse_matrix_type> secondAdjs =
@@ -424,13 +380,13 @@ public:
       Tpetra::MatrixMatrix::Multiply(*adjsMatrix,false,*adjsMatrix,
                                      true,*secondAdjs);
       Array<gno_t> Indices;
-      Array<scalar_t> Values;
+      Array<nonzero_t> Values;
 
       /* Allocate memory necessary for the adjacency */
       lno_t *start = new lno_t [LocalNumIDs+1];
       std::vector<gno_t> adj;
 
-      for (int localElement = 0; localElement < LocalNumIDs; ++localElement) {
+      for (size_t localElement=0; localElement<LocalNumIDs; ++localElement){
         start[localElement] = nadj;
         const gno_t globalRow = Ids[localElement];
         size_t NumEntries = secondAdjs->getNumEntriesInGlobalRow (globalRow);
@@ -534,9 +490,10 @@ public:
     Z2_THROW_NOT_IMPLEMENTED_IN_ADAPTER
   }
 
+// TODO:  If MeshAdapter computes second adjs, what (if anything) should be
+// TODO;  used for weights?
 //KDD What if we wanted to provide weights with respect to first adjacencies?
 //KDD Should we add functions for that?
-//VJL Yes.
 
   ////////////////////////////////////////////////////////////////////////////
   // Implementations of base-class methods
@@ -552,7 +509,6 @@ public:
    *  That is, a primaryEntityType that contains an adjacencyEntityType are
    *  adjacent.
    *  KDD:  Is Adjacency a poorly chosen name here?  Is it overloaded?
-   *  VJL:  Maybe
    */
   inline enum MeshEntityType getAdjacencyEntityType() const {
     return this->adjacencyEntityType;
@@ -573,7 +529,6 @@ public:
    *  secondAdjacencyEntityType to something reasonable:  primaryEntityType not
    *  adjacencyEntityType or secondAdjacencyEntityType.
    *  KDD:  Is Adjacency a poorly chosen name here?  Is it overloaded?
-   *  VJL:  Maybe
    */
   void setEntityTypes(std::string ptypestr, std::string atypestr,
                       std::string satypestr) {

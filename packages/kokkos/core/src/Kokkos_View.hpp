@@ -249,7 +249,7 @@ public:
 
   //------------------------------------
 
-  typedef ExecutionSpace  device_type ; // for backward compatibility, to be removed
+  typedef Impl::DeviceInternal<ExecutionSpace,MemorySpace>  device_type ; // for backward compatibility, to be removed
 
   //------------------------------------
   // Specialization tag:
@@ -495,17 +495,17 @@ public:
 
   typedef View< typename traits::array_intrinsic_type ,
                 typename traits::array_layout ,
-                typename traits::execution_space ,
+                typename traits::device_type ,
                 typename traits::memory_traits > array_type ;
 
   typedef View< typename traits::const_data_type ,
                 typename traits::array_layout ,
-                typename traits::execution_space ,
+                typename traits::device_type ,
                 typename traits::memory_traits > const_type ;
 
   typedef View< typename traits::non_const_data_type ,
                 typename traits::array_layout ,
-                typename traits::execution_space ,
+                typename traits::device_type ,
                 typename traits::memory_traits > non_const_type ;
 
   typedef View< typename traits::non_const_data_type ,
@@ -705,7 +705,7 @@ public:
   // The allocator used must be compatiable with the memory space of the view
   // No alignment padding is performed.
   // TODO: Should these allow padding??? DJS 01/15/15
-  explicit KOKKOS_INLINE_FUNCTION
+  explicit
   View( Impl::AllocationTracker const &arg_tracker ,
         const size_t n0 = 0 ,
         const size_t n1 = 0 ,
@@ -729,7 +729,7 @@ public:
       }
     }
 
-  explicit KOKKOS_INLINE_FUNCTION
+  explicit
   View( Impl::AllocationTracker const & arg_tracker
       , typename traits::array_layout const & layout )
     : m_ptr_on_device(reinterpret_cast<typename traits::value_type*>(arg_tracker.alloc_ptr()))

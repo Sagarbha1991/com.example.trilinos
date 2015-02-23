@@ -161,6 +161,10 @@ Perf fenl_assembly(
                              use_nodes[0] , use_nodes[1] , use_nodes[2] ,
                              bubble_x , bubble_y , bubble_z );
 
+  if ( maximum(comm, ( fixture.ok() ? 0 : 1 ) ) ) {
+    throw std::runtime_error(std::string("Problem fixture setup failed"));
+  }
+
   //------------------------------------
 
   const ImportType comm_nodal_import(
@@ -345,7 +349,7 @@ template <class Storage>
 struct PerformanceDriverOp {
   typedef typename Storage::value_type Scalar;
   typedef typename Storage::ordinal_type Ordinal;
-  typedef typename Storage::device_type Device;
+  typedef typename Storage::execution_space Device;
   Teuchos::RCP<const Teuchos::Comm<int> > comm ;
   const int use_print ;
   const int use_trials ;

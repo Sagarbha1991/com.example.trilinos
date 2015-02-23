@@ -52,7 +52,8 @@ bool run( const Teuchos::RCP<const Teuchos::Comm<int> > & comm ,
   RCP<const product_basis> basis = rcp(new product_basis(bases));
   RCP<Cijk> cijk = basis->computeTripleProductTensor();
 
-  typedef Stokhos::DynamicStorage<int,double,Device> Storage;
+  typedef typename Device::memory_space memory_space;
+  typedef Stokhos::DynamicStorage<int,double,memory_space> Storage;
   typedef Sacado::UQ::PCE<Storage> Scalar;
   typename Scalar::cijk_type kokkos_cijk =
     Stokhos::create_product_tensor<Device>(*basis, *cijk);
@@ -248,19 +249,19 @@ int main( int argc , char ** argv )
 
   if ( ! cmdline.ERROR  && ! cmdline.ECHO  ) {
 
-#if defined( HAVE_TPETRA_INST_PTHREAD )
+#if defined( HAVE_TPETRA_PTHREAD )
     if ( cmdline.USE_THREADS ) {
       run< Kokkos::Threads >( comm , cmdline );
     }
 #endif
 
-#if defined( HAVE_TPETRA_INST_OPENMP )
+#if defined( HAVE_TPETRA_OPENMP )
     if ( cmdline.USE_OPENMP ) {
       run< Kokkos::OpenMP >( comm , cmdline );
     }
 #endif
 
-#if defined( HAVE_TPETRA_INST_CUDA )
+#if defined( HAVE_TPETRA_CUDA )
     if ( cmdline.USE_CUDA ) {
       run< Kokkos::Cuda >( comm , cmdline );
     }
