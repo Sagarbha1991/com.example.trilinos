@@ -103,7 +103,7 @@ Teuchos::RCP<STK_Interface> STK_PamgenReaderFactory::buildUncommitedMesh(stk::Pa
    stk::io::StkMeshIoBroker* meshData = new stk::io::StkMeshIoBroker(parallelMach);
    meshData->add_mesh_database(fileName_, "pamgen", stk::io::READ_MESH);
    meshData->create_input_mesh();
-   RCP<stk::mesh::MetaData> metaData = meshData->get_meta_data();
+   RCP<stk::mesh::MetaData> metaData = rcp(&meshData->meta_data());
 
    RCP<STK_Interface> mesh = rcp(new STK_Interface(metaData));
    mesh->initializeFromMetaData();
