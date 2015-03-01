@@ -350,7 +350,7 @@ namespace panzer {
     const std::size_t workset_size = 4;
     const std::string fieldName = "U";
 
-    Teuchos::RCP<panzer_stk_classic::STK_Interface> mesh = buildMesh(2,2);
+    Teuchos::RCP<panzer_stk::STK_Interface> mesh = buildMesh(2,2);
 
     // build input physics block
     Teuchos::RCP<panzer::PureBasis> basis_edge = buildBasis(workset_size,"HCurl");
@@ -367,7 +367,7 @@ namespace panzer {
     Teuchos::RCP<panzer::PhysicsBlock> physicsBlock = 
       Teuchos::rcp(new PhysicsBlock(ipb,eBlockID,integration_order,cellData,eqset_factory,gd,false));
 
-    Teuchos::RCP<std::vector<panzer::Workset> > work_sets = panzer_stk_classic::buildWorksets(*mesh,*physicsBlock);
+    Teuchos::RCP<std::vector<panzer::Workset> > work_sets = panzer_stk::buildWorksets(*mesh,*physicsBlock);
     panzer::Workset & workset = (*work_sets)[0];
     TEST_EQUALITY(work_sets->size(),1);
 
