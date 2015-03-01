@@ -50,6 +50,9 @@ using Teuchos::rcp;
 
 #include "Teuchos_DefaultComm.hpp"
 #include "Teuchos_GlobalMPISession.hpp"
+
+#include "Phalanx_KokkosUtilities.hpp"
+
 #include "Panzer_STK_Version.hpp"
 #include "Panzer_STK_config.hpp"
 #include "Panzer_STK_Interface.hpp"
@@ -72,6 +75,8 @@ namespace panzer {
 
   TEUCHOS_UNIT_TEST(workset_builder, volume)
   {
+    PHX::KokkosDeviceSession session;
+
     RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
     pl->set("X Blocks",2);
     pl->set("Y Blocks",1);
@@ -141,7 +146,7 @@ namespace panzer {
       TEST_EQUALITY((*worksets[i])[0].cell_vertex_coordinates(0,0,0), cell_vertex_coordinates(0,0,0));
       TEST_EQUALITY((*worksets[i])[0].cell_vertex_coordinates(2,3,1), cell_vertex_coordinates(2,3,1));
 
-      TEST_ASSERT((*worksets[i])[0].cell_local_ids == local_cell_ids);
+      TEST_ASSERT((*worksets[i])[0].cell_local_ids==local_cell_ids);
 
       // test that the "details" vector is properly setup (first index points to self)
       TEST_EQUALITY((*worksets[i])[0].details.size(),1); 
@@ -164,6 +169,8 @@ namespace panzer {
 
   TEUCHOS_UNIT_TEST(workset_builder, edge)
   {
+    PHX::KokkosDeviceSession session;
+
     RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
     pl->set("X Blocks",2);
     pl->set("Y Blocks",1);
@@ -291,6 +298,8 @@ namespace panzer {
 
   TEUCHOS_UNIT_TEST(workset_builder, stk_edge)
   {
+    PHX::KokkosDeviceSession session;
+
     RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
     pl->set("X Blocks",2);
     pl->set("Y Blocks",1);
@@ -414,6 +423,8 @@ namespace panzer {
   TEUCHOS_UNIT_TEST(workset_builder, sidesets)
   {
     using Teuchos::RCP;
+
+    PHX::KokkosDeviceSession session;
     
     RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
     pl->set("X Blocks",2);
@@ -569,6 +580,8 @@ namespace panzer {
   TEUCHOS_UNIT_TEST(workset_builder, side_element_cascade)
   {
     using Teuchos::RCP;
+
+    PHX::KokkosDeviceSession session;
     
     // excercise subcell entities capability
     {
