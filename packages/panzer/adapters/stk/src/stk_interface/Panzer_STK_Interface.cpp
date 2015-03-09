@@ -225,10 +225,6 @@ void STK_Interface::initialize(stk::ParallelMachine parallelMach,bool setupIO)
    if(mpiComm_==Teuchos::null)
       mpiComm_ = getSafeCommunicator(parallelMach);
 
-   stk::mesh::EntityRank elementRank = getElementRank();
-   stk::mesh::EntityRank nodeRank = getNodeRank();
-   stk::mesh::EntityRank edgeRank = getEdgeRank();
-
    procRank_ = stk::parallel_machine_rank(*mpiComm_->getRawMpiComm());
 
    // associating the field with a part: universal part!
@@ -333,10 +329,55 @@ void STK_Interface::endModification()
    TEUCHOS_TEST_FOR_EXCEPTION(bulkData_==Teuchos::null,std::logic_error,
                       "STK_Interface: Must call \"initialized\" or \"instantiateBulkData\" before \"endModification\"");
 
-   bulkData_->modification_end();
+   // TODO: Resolving sharing this way comes at a cost in performance. The STK
+   // team has decided that users need to declare their own sharing. We should
+   // find where shared entities are being created in Panzer and declare it.
+   // Once this is done, the extra code below can be deleted.
 
-   buildEntityCounts();
-   buildMaxEntityIds();
+    stk::CommAll comm(bulkData_->parallel());
+
+    for (int phase=0;phase<2;++phase) {
+      for (int i=0;i<bulkData_->parallel_size();++i) {
+        if ( i != bulkData_->parallel_rank() ) {
+          const stk::mesh::BucketVector& buckets = bulkData_->buckets(stk::topology::NODE_RANK);
+          for (size_t j=0;j<buckets.size();++j) {
+            const stk::mesh::Bucket& bucket = *buckets[j];
+            if ( bucket.owned() ) {
+              for (size_t k=0;k<bucket.size();++k) {
+                stk::mesh::EntityKey key = bulkData_->entity_key(bucket[k]);
+                comm.send_buffer(i).pack<stk::mesh::EntityKey>(key);
+              }
+            }
+          }
+        }
+      }
+
+      if (phase == 0 ) {
+        comm.allocate_buffers( bulkData_->parallel_size()/4 );
+      }
+      else {
+        comm.communicate();
+      }
+    }
+
+    for (int i=0;i<bulkData_->parallel_size();++i) {
+      if ( i != bulkData_->parallel_rank() ) {
+        while(comm.recv_buffer(i).remaining()) {
+          stk::mesh::EntityKey key;
+          comm.recv_buffer(i).unpack<stk::mesh::EntityKey>(key);
+          stk::mesh::Entity node = bulkData_->get_entity(key);
+          if ( bulkData_->is_valid(node) ) {
+            bulkData_->add_node_sharing(node, i);
+          }
+        }
+      }
+    }
+
+
+    bulkData_->modification_end();
+
+    buildEntityCounts();
+    buildMaxEntityIds();
 }
 
 void STK_Interface::addNode(stk::mesh::EntityId gid, const std::vector<double> & coord)
@@ -400,7 +441,6 @@ void STK_Interface::addEdges()
 {
    // loop over elements
    stk::mesh::EntityRank edgeRank = getEdgeRank();
-   stk::mesh::EntityRank nodeRank = getNodeRank();
    std::vector<stk::mesh::Entity> localElmts;
    getMyElements(localElmts);
    std::vector<stk::mesh::Entity>::const_iterator itr;
@@ -412,7 +452,6 @@ void STK_Interface::addEdges()
 
      for(std::size_t i=0;i<subcellIds.size();++i) {
        stk::mesh::Entity edge = bulkData_->get_entity(edgeRank,subcellIds[i]);
-       const size_t numNodes = bulkData_->num_nodes(edge);
        stk::mesh::Entity const* relations = bulkData_->begin_nodes(edge);
 
        double * node_coord_1 = stk::mesh::field_data(*coordinatesField_,relations[0]);
@@ -519,7 +558,6 @@ bool STK_Interface::isWritable() const
 
 void STK_Interface::getElementsSharingNode(stk::mesh::EntityId nodeId,std::vector<stk::mesh::Entity> & elements) const
 {
-   stk::mesh::EntityRank elementRank = getElementRank();
    stk::mesh::EntityRank nodeRank = getNodeRank();
 
    // get all relations for node
@@ -534,8 +572,6 @@ void STK_Interface::getElementsSharingNode(stk::mesh::EntityId nodeId,std::vecto
 void STK_Interface::getOwnedElementsSharingNode(stk::mesh::Entity node,std::vector<stk::mesh::Entity> & elements,
                                                                          std::vector<int> & localNodeId) const
 {
-   stk::mesh::EntityRank elementRank = getElementRank();
-
    // get all relations for node
    const size_t numElements = bulkData_->num_elements(node);
    stk::mesh::Entity const* relations = bulkData_->begin_elements(node);

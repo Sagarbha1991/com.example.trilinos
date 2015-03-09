@@ -836,7 +836,7 @@ TEUCHOS_UNIT_TEST(tSquareQuadMeshDOFManager, buildTest_q2q1)
 
       // edges
       TEST_EQUALITY(gids[12],9); TEST_EQUALITY(gids[13],10);
-      TEST_EQUALITY(gids[14],51); TEST_EQUALITY(gids[15],52);
+      TEST_EQUALITY(gids[14],41); TEST_EQUALITY(gids[15],42);
       TEST_EQUALITY(gids[16],11); TEST_EQUALITY(gids[17],12);
       TEST_EQUALITY(gids[18],13); TEST_EQUALITY(gids[19],14);
       TEST_EQUALITY(gids[20],19); TEST_EQUALITY(gids[21],20);
@@ -852,7 +852,7 @@ TEUCHOS_UNIT_TEST(tSquareQuadMeshDOFManager, buildTest_q2q1)
 
       // edges
       TEST_EQUALITY(gids[12],11); TEST_EQUALITY(gids[13],12);
-      TEST_EQUALITY(gids[14],53); TEST_EQUALITY(gids[15],54);
+      TEST_EQUALITY(gids[14],43); TEST_EQUALITY(gids[15],44);
       TEST_EQUALITY(gids[16],15); TEST_EQUALITY(gids[17],16);
       TEST_EQUALITY(gids[18],17); TEST_EQUALITY(gids[19],18);
       TEST_EQUALITY(gids[20],21); TEST_EQUALITY(gids[21],22);
