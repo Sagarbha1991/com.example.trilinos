@@ -1031,7 +1031,7 @@ void STK_Interface::getElementVertices_FromCoords(const std::vector<stk::mesh::E
                          "In call to STK_Interface::getElementVertices cardinality of "
                          "element node relations must be the vertex count!");
       for(std::size_t node=0; node<num_nodes; ++node) {
-         const double * coord = getNodeCoordinates(bulkData_->identifier(nodes[node]));
+         const double * coord = getNodeCoordinates(nodes[node]);
 
          // set each dimension of the coordinate
          for(unsigned d=0;d<dim;d++)
@@ -1079,7 +1079,7 @@ void STK_Interface::getElementVertices_FromField(const std::vector<stk::mesh::En
       for(std::size_t i=0; i<num_nodes; ++i) {
          stk::mesh::Entity node = nodes[i];
 
-         const double * coord = getNodeCoordinates(bulkData_->identifier(node));
+         const double * coord = getNodeCoordinates(node);
 
          for(int d=0;d<getDimension();d++) {
            double * solnData = stk::mesh::field_data(*fields[d],node);
