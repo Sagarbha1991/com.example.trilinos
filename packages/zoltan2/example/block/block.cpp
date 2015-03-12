@@ -71,8 +71,12 @@ int main(int argc, char *argv[])
 #endif
 
   typedef double scalar_t;
-  typedef long   localId_t;
-  typedef long   globalId_t;
+  typedef int localId_t;
+#ifdef HAVE_ZOLTAN2_LONG_LONG
+  typedef long long globalId_t;
+#else
+  typedef int globalId_t;
+#endif
 
   ///////////////////////////////////////////////////////////////////////
   // Generate some input data.

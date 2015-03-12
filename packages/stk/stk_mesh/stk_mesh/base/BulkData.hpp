@@ -76,6 +76,7 @@ namespace stk { namespace mesh { struct ConnectivityMap; } }
 namespace stk { namespace mesh { class BulkData; } }
 namespace stk { namespace mesh { namespace impl { class EntityRepository; } } }
 namespace stk { class CommSparse; }
+namespace stk { class CommAll; }
 
 #include "EntityCommListInfo.hpp"
 #include "EntityLess.hpp"
@@ -84,6 +85,10 @@ namespace stk { class CommSparse; }
 
 namespace stk {
 namespace mesh {
+
+class BulkData;
+void communicate_field_data(const Ghosting & ghosts, const std::vector<const FieldBase *> & fields);
+void communicate_field_data(const BulkData & mesh, const std::vector<const FieldBase *> & fields);
 
 class BulkData {
 
@@ -450,7 +455,7 @@ public:
       const Entity side , unsigned local_side_id ) const;
 
   /** \brief  All entities with communication information. */
-  const EntityCommListInfoVector & comm_list() const { return m_entity_comm_list; }     // CLEANUP: outside of unit tests only used in percept for consistency checks (copied from BulkData) and printing
+  STK_DEPRECATED(const EntityCommListInfoVector & comm_list() const) { return internal_comm_list(); } //deprecated on March 6, 2015
 
   inline VolatileFastSharedCommMapOneRank const& volatile_fast_shared_comm_map(EntityRank rank) const;  // CLEANUP: only used by FieldParallel.cpp
 
@@ -505,12 +510,10 @@ public:
 
   /** \brief  Entity Comm functions that are now moved to BulkData
    */
-  PairIterEntityComm entity_comm_map(const EntityKey & key) const { return m_entity_comm_map.comm(key); } // CLEANUP: could be replaced by comm_shared_procs outside testing (percept prints all ghostings)
-  PairIterEntityComm entity_comm_map(const EntityKey & key, const Ghosting & sub ) const { return m_entity_comm_map.comm(key,sub); }   //CLEANUP: can replace app usage with comm_procs
+  STK_DEPRECATED(PairIterEntityComm entity_comm_map(const EntityKey & key) const) { return internal_entity_comm_map(key); } //deprecated on March 2, 2015
+  STK_DEPRECATED(PairIterEntityComm entity_comm_map(const EntityKey & key, const Ghosting & sub ) const) { return internal_entity_comm_map(key,sub); }   //deprecated on March 2, 2015
 
-  int entity_comm_map_owner(const EntityKey & key) const;       // CLEANUP: can make protected
-
-  // Comm-related convenience methods
+  STK_DEPRECATED(int entity_comm_map_owner(const EntityKey & key) const); //deprecated on March 2, 2015
 
   bool in_shared(EntityKey key) const { return !internal_entity_comm_map_shared(key).empty(); }         // CLEANUP: only used for testing
   bool in_shared(EntityKey key, int proc) const;         // CLEANUP: only used for testing
@@ -520,10 +523,13 @@ public:
   bool in_send_ghost( EntityKey key , int proc ) const;         // CLEANUP: only used for testing
   bool is_aura_ghosted_onto_another_proc( EntityKey key ) const;     // CLEANUP: used only by modification_end_for_entity_creation
   bool in_ghost( const Ghosting & ghost , EntityKey key , int proc ) const;     // CLEANUP: can be moved protected
+  void shared_procs_intersection( std::vector<EntityKey> & keys, std::vector<int> & procs ) const; // CLEANUP: only used by aero
+
+  // Comm-related convenience methods
+
   void comm_procs( EntityKey key, std::vector<int> & procs ) const; //shared and ghosted entities
   void comm_procs( const Ghosting & ghost , EntityKey key, std::vector<int> & procs ) const;
   void comm_shared_procs( EntityKey key, std::vector<int> & procs ) const; // shared entities
-  void shared_procs_intersection( std::vector<EntityKey> & keys, std::vector<int> & procs ) const; // CLEANUP: only used by aero
 
   inline bool in_index_range(Entity entity) const;
   inline bool is_valid(Entity entity) const;
@@ -696,6 +702,11 @@ public:
 
 protected: //functions
 
+  const EntityCommListInfoVector & internal_comm_list() const { return m_entity_comm_list; }
+  PairIterEntityComm internal_entity_comm_map(const EntityKey & key) const { return m_entity_comm_map.comm(key); }
+  PairIterEntityComm internal_entity_comm_map(const EntityKey & key, const Ghosting & sub ) const { return m_entity_comm_map.comm(key,sub); }
+  int internal_entity_comm_map_owner(const EntityKey & key) const;
+
   inline entitySharing internal_is_entity_marked(Entity entity) const;
   PairIterEntityComm internal_entity_comm_map_shared(const EntityKey & key) const { return m_entity_comm_map.shared_comm_info(key); }
 
@@ -755,6 +766,12 @@ protected: //functions
                                                 const PartVector & remove_parts,
                                                 bool always_propagate_internal_changes=true );
 
+  void internal_insert_all_parts_induced_from_higher_rank_entities_to_vector(stk::mesh::Entity entity,
+                                                                               stk::mesh::Entity e_to,
+                                                                               EntityVector &temp_entities,
+                                                                               OrdinalVector &empty,
+                                                                               OrdinalVector &to_add);
+
   bool internal_modification_end_for_change_entity_owner( bool regenerate_aura, modification_optimization opt );
   bool internal_modification_end_for_change_parts();
 
@@ -778,14 +795,32 @@ protected: //functions
   void move_entities_to_proper_part_ownership( const std::vector<stk::mesh::Entity> &shared_modified );
 
   void add_comm_list_entries_for_entities(const std::vector<stk::mesh::Entity>& shared_modified);
+
   bool entity_comm_map_insert(Entity entity, const EntityCommInfo & val)
   {
+      m_modSummary.track_comm_map_insert(entity, val);
       return m_entity_comm_map.insert(entity_key(entity), val, parallel_owner_rank(entity));
   }
-  bool entity_comm_map_erase(  const EntityKey & key, const EntityCommInfo & val) { return m_entity_comm_map.erase(key,val); }
-  bool entity_comm_map_erase(  const EntityKey & key, const Ghosting & ghost) { return m_entity_comm_map.erase(key,ghost); }
-  void entity_comm_map_clear_ghosting(const EntityKey & key ) { m_entity_comm_map.comm_clear_ghosting(key); }
-  void entity_comm_map_clear(const EntityKey & key) { m_entity_comm_map.comm_clear(key); }
+  bool entity_comm_map_erase(  const EntityKey & key, const EntityCommInfo & val)
+  {
+      m_modSummary.track_comm_map_erase(key, val);
+      return m_entity_comm_map.erase(key,val);
+  }
+  bool entity_comm_map_erase(  const EntityKey & key, const Ghosting & ghost)
+  {
+      m_modSummary.track_comm_map_erase(key, ghost);
+      return m_entity_comm_map.erase(key,ghost);
+  }
+  void entity_comm_map_clear_ghosting(const EntityKey & key )
+  {
+      m_modSummary.track_comm_map_clear_ghosting(key);
+      m_entity_comm_map.comm_clear_ghosting(key);
+  }
+  void entity_comm_map_clear(const EntityKey & key)
+  {
+      m_modSummary.track_comm_map_clear(key);
+      m_entity_comm_map.comm_clear(key);
+  }
 
   /** \brief  Regenerate the shared-entity aura,
    *          adding and removing ghosted entities as necessary.
@@ -803,7 +838,7 @@ protected: //functions
                                      NewOwnerMap & new_owner_map);
 
   impl::BucketRepository& bucket_repository() { return m_bucket_repository; }
-  bool internal_modification_end( bool regenerate_aura, modification_optimization opt );
+  virtual bool internal_modification_end( bool regenerate_aura, modification_optimization opt );
 
   bool is_entity_in_sharing_comm_map(stk::mesh::Entity entity);
   void erase_sharing_info_using_key(stk::mesh::EntityKey key, stk::mesh::BulkData::GHOSTING_ID ghostingId);
@@ -842,14 +877,34 @@ protected: //functions
   }
 
   void require_good_rank_and_id(EntityRank ent_rank, EntityId ent_id) const;
-  inline void set_synchronized_count(Entity entity, size_t sync_count);
   void remove_entity_callback(EntityRank rank, unsigned bucket_id, Bucket::size_type bucket_ord);
 
   bool internal_destroy_relation(Entity e_from ,
                                  Entity e_to,
                                  const RelationIdentifier local_id );
+
+  void check_mesh_consistency();
+  bool comm_mesh_verify_parallel_consistency(std::ostream & error_log);
+  void delete_shared_entities_which_are_no_longer_in_owned_closure();
+
 private: //functions
 
+  struct EntityParallelState {
+    int                 from_proc;
+    EntityState         state;
+    EntityCommListInfo  comm_info;
+    const BulkData* mesh;
+
+    bool operator<(const EntityParallelState& rhs) const
+    { return EntityLess(*mesh)(comm_info.entity, rhs.comm_info.entity); }
+  };
+
+  void communicate_entity_modification( const BulkData & mesh ,
+                                        const bool shared ,
+                                        std::vector<EntityParallelState > & data );
+  bool pack_entity_modification( const BulkData & mesh ,
+                                 const bool packShared ,
+                                 stk::CommSparse & comm );
 
   // Only to be called from add_node_sharing
   void protect_orphaned_node(Entity entity)
@@ -933,7 +988,18 @@ private: //functions
   Entity internal_declare_entity( EntityRank ent_rank , EntityId ent_id ,
                                    const PartVector & parts );
 
-  void internal_propagate_part_changes( Entity entity, const std::vector<Part*> & removed );
+  void internal_fill_remove_parts_list(stk::mesh::Entity entity,
+                                       stk::mesh::Entity e_to,
+                                       EntityRank erank,
+                                       const std::vector<Part*> & removed,
+                                       EntityVector &temp_entities,
+                                       OrdinalVector &empty,
+                                       OrdinalVector &scratchOrdinalVector,
+                                       OrdinalVector &partsThatShouldStillBeInduced,
+                                       PartVector &delParts);
+
+  void internal_propagate_induced_part_changes_to_downward_connected_entities( Entity entity,
+                                                                               const std::vector<Part*> & removed );
 
   Ghosting & internal_create_ghosting( const std::string & name );
   void internal_verify_inputs_and_change_ghosting(
@@ -948,23 +1014,25 @@ private: //functions
   void internal_update_parts_for_shared_entity(stk::mesh::Entity entity, const bool is_entity_shared, const bool did_i_just_become_owner);
   void internal_resolve_shared_modify_delete_second_pass();
 
-  void internal_basic_part_check(const Part* part,
-                                 const unsigned ent_rank,
-                                 const unsigned undef_rank,
-                                 bool& intersection_ok,
-                                 bool& rel_target_ok,
-                                 bool& rank_ok) const;
-
   inline void internal_check_unpopulated_relations(Entity entity, EntityRank rank) const;
 
-  // Returns false if there is a problem. It is expected that
-  // verify_change_parts will be called if quick_verify_change_part detects
-  // a problem, therefore we leave the generation of an exception to
-  // verify_change_parts. We want this function to be as fast as
-  // possible.
-  bool internal_quick_verify_change_part(const Part* part,
-                                         const unsigned ent_rank,
-                                         const unsigned undef_rank) const;
+  bool internal_verify_part_ranks_consistent_with_entity_rank(const PartVector & parts, const EntityRank entityRank);
+  void internal_verify_add_and_remove_part_ranks_consistent_with_entity_rank(const PartVector & add_parts,
+                                                                             const PartVector & remove_parts,
+                                                                             stk::mesh::Entity entity);
+  void internal_throw_error_if_manipulating_internal_part_memberships(const PartVector & parts);
+
+  void internal_adjust_closure_count(Entity entity,
+                                       const std::vector<Part*> & add_parts,
+                                       const std::vector<Part*> & remove_parts);
+  void internal_adjust_entity_and_downward_connectivity_closure_count(stk::mesh::Entity entity, stk::mesh::Bucket *bucket_old, uint16_t closureCountAdjustment);
+
+  void internal_fill_new_part_list_and_removed_part_list(stk::mesh::Entity entity,
+                                                           const std::vector<Part*> & add_parts,
+                                                           const std::vector<Part*> & remove_parts,
+                                                           OrdinalVector &newBucketPartList,
+                                                           std::vector<Part*> &parts_removed);
+  void internal_move_entity_to_new_bucket(stk::mesh::Entity entity, const OrdinalVector &newBucketPartList);
 
   void internal_verify_change_parts( const MetaData   & meta ,
                                      const Entity entity ,
@@ -990,6 +1058,40 @@ private: //functions
   friend class ::stk::mesh::impl::EntityRepository;
   friend class ::stk::mesh::impl::BucketRepository;
   friend class stk::mesh::Bucket; // for field callback
+  friend class Ghosting; // friend until Ghosting is refactored to be like Entity
+
+  // friends until it is decided what we're doing with Fields and Parallel and BulkData
+  friend void communicate_field_data(const Ghosting & ghosts, const std::vector<const FieldBase *> & fields);
+  friend void communicate_field_data(const BulkData & mesh, const std::vector<const FieldBase *> & fields);
+
+  bool ordered_comm( const Entity entity );
+  void pack_owned_verify(CommAll & all);
+  bool unpack_not_owned_verify(CommAll & comm_all, std::ostream & error_log);
+  bool verify_parallel_attributes( std::ostream & error_log );
+  bool verify_parallel_attributes_comm_list_info(size_t comm_count, std::ostream & error_log);
+  bool verify_parallel_attributes_for_bucket( Bucket const& bucket, std::ostream & error_log, size_t& comm_count );
+  void unpack_not_owned_verify_report_errors(Entity entity,
+                                             bool bad_key,
+                                             bool bad_own,
+                                             bool bad_part,
+                                             bool bad_rel,
+                                             bool bad_comm,
+                                             EntityKey recv_entity_key,
+                                             int recv_owner_rank,
+                                             std::vector<Part*> const& recv_parts,
+                                             std::vector<Relation> const& recv_relations,
+                                             std::vector<int> const& recv_comm,
+                                             std::ostream & error_log);
+  void unpack_not_owned_verify_compare_comm_info( CommBuffer&            buf,
+                                                  Entity                 entity,
+                                                  EntityKey &            recv_entity_key,
+                                                  int       &            recv_owner_rank,
+                                                  unsigned  &            recv_comm_count,
+                                                  std::vector<Part*>&    recv_parts,
+                                                  std::vector<Relation>& recv_relations,
+                                                  std::vector<int>    &  recv_comm,
+                                                  bool&                  bad_comm);
+
 
   void reset_modification_counters();
   std::string create_modification_counts_filename() const;
@@ -1011,6 +1113,23 @@ private: //functions
       void operator()(Entity entity);
       BulkData & mesh;
   };
+
+  void fillEntityCommInfoForEntity(stk::mesh::Ghosting &ghost_id,
+                                   stk::mesh::BulkData &mesh,
+                                   std::vector<stk::mesh::EntityKey> nodes,
+                                   EntityCommInfoVector &sharing_processors);
+  void fillSharedEntities(stk::mesh::Ghosting& ghost_id,
+                          stk::mesh::BulkData &mesh,
+                          std::vector<shared_entity_type> & shared_entity_map,
+                          std::vector<std::vector<shared_entity_type> > &shared_entities);
+  void determineEntitiesThatNeedGhosting(stk::mesh::BulkData &stkMeshBulkData,
+                                         stk::mesh::Entity edge,
+                                         std::vector<stk::mesh::Entity>& entitiesConnectedToNodes,
+                                         const stk::mesh::Entity* nodes,
+                                         std::set<EntityProc, EntityLess> &addGhostedEntities);
+  void find_upward_connected_entities_to_ghost_onto_other_processors(stk::mesh::BulkData &mesh,
+                                                                     std::set<EntityProc, EntityLess> &entitiesToGhostOntoOtherProcessors,
+                                                                     EntityRank entity_rank);
 
 public: // data
   mutable bool m_check_invalid_rels; // TODO REMOVE
@@ -1046,7 +1165,6 @@ private: // data
   std::list<size_t, tracking_allocator<size_t, DeletedEntityTag> > m_deleted_entities;
   int m_num_fields;
   bool m_keep_fields_updated;
-  std::vector<size_t> m_entity_sync_counts;
   std::vector<unsigned> m_local_ids;
 
   //  ContiguousFieldDataManager m_default_field_data_manager;

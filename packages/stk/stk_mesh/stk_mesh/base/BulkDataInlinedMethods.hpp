@@ -407,42 +407,13 @@ bool BulkData::has_permutation(Entity entity, EntityRank rank) const
   return bucket(entity).has_permutation(rank);
 }
 
-/** \} */
-
-inline
-void BulkData::internal_basic_part_check(const Part* part,
-                                         const unsigned ent_rank,
-                                         const unsigned undef_rank,
-                                         bool& intersection_ok,
-                                         bool& rel_target_ok,
-                                         bool& rank_ok) const
-{
-  // const unsigned part_rank = part->primary_entity_rank();
-
-  intersection_ok = true;
-  rel_target_ok   = true;
-
-  // Do we allow arbitrary part changes to entities regardless of part rank? For the sake of the migration, we will for now.
-#ifdef SIERRA_MIGRATION
-  rank_ok = true;
-#else
-  const unsigned part_rank = part->primary_entity_rank();
-  rank_ok         = ( ent_rank == part_rank ||
-                      undef_rank  == part_rank );
-#endif
-}
-
-inline bool BulkData::internal_quick_verify_change_part(const Part* part,
-                                                        const unsigned ent_rank,
-                                                        const unsigned undef_rank) const
-{
-  bool intersection_ok=false, rel_target_ok=false, rank_ok=false;
-  internal_basic_part_check(part, ent_rank, undef_rank, intersection_ok, rel_target_ok, rank_ok);
-  return intersection_ok && rel_target_ok && rank_ok;
-}
-
 inline
 int BulkData::entity_comm_map_owner(const EntityKey & key) const
+{
+    return internal_entity_comm_map_owner(key);
+}
+inline
+int BulkData::internal_entity_comm_map_owner(const EntityKey & key) const
 {
   const int owner_rank = m_entity_comm_map.owner_rank(key);
   ThrowAssertMsg(owner_rank == InvalidProcessRank || owner_rank == parallel_owner_rank(get_entity(key)),
@@ -454,28 +425,35 @@ int BulkData::entity_comm_map_owner(const EntityKey & key) const
 inline
 bool BulkData::in_receive_ghost( EntityKey key ) const
 {
-  // Ghost communication with owner.
-  const int owner_rank = entity_comm_map_owner(key);
-  PairIterEntityComm ec = entity_comm_map(key);
-  return !ec.empty() && ec.front().ghost_id != 0 &&
-         ec.front().proc == owner_rank;
+  const std::vector<Ghosting*> & ghosts= ghostings();
+  for (size_t i=ghosts.size()-1;i>=AURA;--i)
+  {
+      if ( in_receive_ghost(*ghosts[i], key) )
+          return true;
+  }
+  return false;
 }
 
 inline
 bool BulkData::in_receive_ghost( const Ghosting & ghost , EntityKey key ) const
 {
-  const int owner_rank = entity_comm_map_owner(key);
+  const int owner_rank = internal_entity_comm_map_owner(key);
   return in_ghost( ghost , key , owner_rank );
 }
 
 inline
 bool BulkData::in_send_ghost( EntityKey key) const
 {
-  // Ghost communication with non-owner.
-  const int owner_rank = entity_comm_map_owner(key);
-  PairIterEntityComm ec = entity_comm_map(key);
-  return ! ec.empty() && ec.back().ghost_id != 0 &&
-    ec.back().proc != owner_rank;
+    const int owner_rank = internal_entity_comm_map_owner(key);
+    for ( PairIterEntityComm ec = internal_entity_comm_map(key); ! ec.empty() ; ++ec )
+    {
+      if ( ec->ghost_id != 0 &&
+           ec->proc     != owner_rank)
+      {
+        return true;
+      }
+    }
+    return false;
 }
 
 inline
@@ -921,13 +899,6 @@ inline void BulkData::set_state(Entity entity, EntityState entity_state)
 
   m_entity_states[entity.local_offset()] = static_cast<uint16_t>(entity_state);
   m_mark_entity[entity.local_offset()] = NOT_MARKED;
-}
-
-inline void BulkData::set_synchronized_count(Entity entity, size_t sync_count)
-{
-  entity_setter_debug_check(entity);
-
-  m_entity_sync_counts[entity.local_offset()] = sync_count;
 }
 
 inline void BulkData::set_local_id(Entity entity, unsigned id)

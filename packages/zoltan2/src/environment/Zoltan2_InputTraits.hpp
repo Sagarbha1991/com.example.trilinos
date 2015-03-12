@@ -61,42 +61,30 @@
 #include <Xpetra_RowMatrix.hpp>
 #include <Xpetra_TpetraRowMatrix.hpp>
 #include <Xpetra_CrsGraph.hpp>
+#include <Kokkos_DefaultNode.hpp>
 
 namespace Zoltan2{
 
+// Default local ordinal
 typedef int default_lno_t;
 
-typedef int default_part_t;  // Default part number type.
-                             // Restrictions in MPI interface will make it
+// Default global ordinal
+typedef int default_gno_t;
+
+// Default scalar type (for weights, coordinates)
+typedef double default_scalar_t;
+
+// Default part number type.
+typedef int default_part_t;  // Restrictions in MPI interface will make it
                              // somewhat difficult to change default_part_t to
                              // long long, since we use part_t for ranks
                              // and we sometimes broadcast arrays whose
                              // size has type part_t.
 
-#ifdef HAVE_ZOLTAN2_INST_FLOAT_INT_LONG
-typedef float default_scalar_t;
-typedef long default_gno_t;
-#else
- #ifdef HAVE_ZOLTAN2_INST_DOUBLE_INT_LONG
- typedef double default_scalar_t;
- typedef long default_gno_t;
- #else
-  #ifdef HAVE_ZOLTAN2_INST_FLOAT_INT_INT
-  typedef float default_scalar_t;
-  typedef int default_gno_t;
-  #else
-   #ifdef HAVE_ZOLTAN2_INST_DOUBLE_INT_INT
-   typedef double default_scalar_t;
-   typedef int default_gno_t;
-   #else
-   typedef double default_scalar_t;
-   typedef int default_gno_t;
-   #endif
-  #endif
- #endif
-#endif
+// Until Kokkos node types are supported, use default
+typedef Tpetra::Map<>::node_type default_node_t;
 
-/*! \brief A simple class that can be the User template argument 
+/*! \brief A simple class that can be the User template argument
  *             for an InputAdapter.
  *
  *  BasicUserTypes is a convenience class that provides a simple way
@@ -114,8 +102,8 @@ typedef long default_gno_t;
  *  construct your InputAdapter as follows.
  *
  *  Suppose you want to construct a Zoltan2::BasicVectorAdapter object and
- *  you use \c float for vector values in your application, \c long for 
- *  global identifiers, and \c int for local indices. 
+ *  you use \c float for vector values in your application, \c long for
+ *  global identifiers, and \c int for local indices.
  *
  *  You need to determine an integral data type that Zoltan2 can use internally
  *  for global identifiers. Often this is the same data type that you use for
@@ -136,7 +124,7 @@ typedef long default_gno_t;
     \li \c gid (global id) is the data type used by the application for global Ids.  If the application's global Id data type is a Teuchos Ordinal, then \c gid and \c gno can the same.  Otherwise, the application global Ids will be mapped to Teuchos Ordinals for use by Zoltan2 internally.  (Teuchos Ordinals are those data types for which traits are defined in Teuchos_OrdinalTraits.hpp.)
     \li \c lno (local number) is the integral data type used by the application and by Zoltan2 for local indices and local counts.
     \li \c gno (global number) is the integral data type used by Zoltan2 to represent global indices and global counts.
- */  
+ */
 
 template <typename scalar=double, typename gid=int,
           typename lno=int, typename gno=int>
@@ -154,7 +142,7 @@ class BasicUserTypes{
  *
  *  If the User object is \em not a C++ class or C-language struct, and
  *  particularly if you do not plan to pass your User object as an
- *  argument to the InputAdapter constructor, you can use the 
+ *  argument to the InputAdapter constructor, you can use the
  *  BasicUserTypes class as your User class.
  *
  *  InputTraits already exist for:
@@ -198,7 +186,7 @@ struct InputTraits {
    *
    *   In most cases this is the same as the \c gno_t.  However if a
    *   user uses Ids that are not Teuchos Ordinals, such as
-   *   pair<int, int> then this is different.  
+   *   pair<int, int> then this is different.
    */
   typedef default_gno_t zgid_t;
 
@@ -207,9 +195,9 @@ struct InputTraits {
   typedef default_part_t part_t;
 
   /*! \brief  The Kokkos node type.  This is only meaningful for users
-   *             of Tpetra objects.
+   *          of Tpetra objects.
    */
-  typedef KokkosClassic::DefaultNode::DefaultNodeType node_t;
+  typedef default_node_t node_t;
 
   /*! \brief  The name of the user's input object.
    */
@@ -271,7 +259,7 @@ struct InputTraits<Epetra_CrsMatrix>
   typedef int gno_t;
   typedef int zgid_t;
   typedef Zoltan2::default_part_t  part_t;
-  typedef KokkosClassic::DefaultNode::DefaultNodeType node_t;
+  typedef Zoltan2::default_node_t node_t;
   static inline std::string name() {return "Epetra_CrsMatrix";}
 };
 
@@ -341,7 +329,7 @@ struct InputTraits<Epetra_CrsGraph>
   typedef int   gno_t;
   typedef int   zgid_t;
   typedef Zoltan2::default_part_t  part_t;
-  typedef KokkosClassic::DefaultNode::DefaultNodeType node_t;
+  typedef Zoltan2::default_node_t node_t;
   static inline std::string name() {return "Epetra_CrsGraph";}
 };
 
@@ -386,7 +374,7 @@ struct InputTraits<Epetra_Vector>
   typedef int   gno_t;
   typedef int   zgid_t;
   typedef Zoltan2::default_part_t  part_t;
-  typedef KokkosClassic::DefaultNode::DefaultNodeType node_t;
+  typedef Zoltan2::default_node_t node_t;
   static inline std::string name() {return "Epetra_Vector";}
 };
 
@@ -428,7 +416,7 @@ struct InputTraits<Epetra_MultiVector>
   typedef int   gno_t;
   typedef int   zgid_t;
   typedef Zoltan2::default_part_t  part_t;
-  typedef KokkosClassic::DefaultNode::DefaultNodeType node_t;
+  typedef Zoltan2::default_node_t node_t;
   static inline std::string name() {return "Epetra_MultiVector";}
 };
 

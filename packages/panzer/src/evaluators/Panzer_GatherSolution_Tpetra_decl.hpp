@@ -205,7 +205,14 @@ public:
   virtual Teuchos::RCP<CloneableEvaluator> clone(const Teuchos::ParameterList & pl) const
   { return Teuchos::rcp(new GatherSolution_Tpetra<panzer::Traits::Jacobian,TRAITS,LO,GO,NodeT>(globalIndexer_,pl)); }
   
+  KOKKOS_INLINE_FUNCTION
   void operator()(const int cell) const;
+
+
+  // No seeding of the AD fuctor
+  struct NoSeed {};
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const NoSeed,const int cell) const;
 
 private:
 
@@ -226,6 +233,7 @@ private:
                         // as appropriate
 
   Teuchos::RCP<const TpetraLinearObjContainer<double,LO,GO,NodeT> > tpetraContainer_;
+  Teuchos::RCP<typename TpetraLinearObjContainer<double,LO,GO,NodeT>::VectorType> x_vector;
 
   GatherSolution_Tpetra();
 

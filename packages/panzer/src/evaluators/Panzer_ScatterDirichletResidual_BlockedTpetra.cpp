@@ -1,9 +1,9 @@
 // @HEADER
-//
 // ***********************************************************************
 //
-//   Zoltan2: A package of combinatorial algorithms for scientific computing
-//                  Copyright 2012 Sandia Corporation
+//           Panzer: A partial differential equation assembly
+//       engine for strongly coupled complex multiphysics systems
+//                 Copyright (2011) Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -35,62 +35,17 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact Karen Devine      (kddevin@sandia.gov)
-//                    Erik Boman        (egboman@sandia.gov)
-//                    Siva Rajamanickam (srajama@sandia.gov)
-//
+// Questions? Contact Roger P. Pawlowski (rppawlo@sandia.gov) and
+// Eric C. Cyr (eccyr@sandia.gov)
 // ***********************************************************************
-//
 // @HEADER
 
-#include <Teuchos_DefaultComm.hpp>
-#include <Tpetra_CrsMatrix.hpp>
-#include <MatrixMarket_Tpetra.hpp>
+#include "Panzer_config.hpp"
 
-#include <string>
-#include <iostream>
-#include <exception>
+#include "Panzer_ExplicitTemplateInstantiation.hpp"
+#include "Panzer_Traits.hpp"
 
-using std::string;
-using std::cerr;
-using std::endl;
-using Teuchos::RCP;
+#include "Panzer_ScatterDirichletResidual_BlockedTpetra.hpp"
+#include "Panzer_ScatterDirichletResidual_BlockedTpetra_impl.hpp"
 
-typedef KokkosClassic::DefaultNode::DefaultNodeType znode_t;
-typedef float zscalar_t;
-typedef int zlno_t;
-typedef int zgno_t;
-
-typedef Tpetra::CrsMatrix<zscalar_t, zlno_t, zgno_t, znode_t> tcrsMatrix_t;
-
-
-int main(int argc, char *argv[])
-{
-  Teuchos::GlobalMPISession session(&argc, &argv, NULL);
-  RCP<const Teuchos::Comm<int> > comm = Teuchos::DefaultComm<int>::getComm();
-
-  // Error: it's a pattern matrix.  (A graph, there are non non-zeros.)
-  // packages/tpetra/inout/MatrixMarket_Tpetra.hpp line 1003
-  //
-  // string fname("commanche_dual.mtx"); 
-
-  // Crash: 
-  string fname("USAir97.mtx");
-
-  //string fname("simple.mtx"); // This file is read without error
-
-  RCP<tcrsMatrix_t> M;
-  RCP<KokkosClassic::DefaultNode::DefaultNodeType> dnode
-    = KokkosClassic::DefaultNode::getDefaultNode();
-
-  try{
-    M = Tpetra::MatrixMarket::Reader<tcrsMatrix_t>::readSparseFile(
-      fname, comm, dnode);
-  }
-  catch (std::invalid_argument &e){
-    cerr << e.what() << endl;
-  }
-  catch (...){
-    cerr << "error" << endl;
-  }
-}
+PANZER_INSTANTIATE_TEMPLATE_CLASS_FOUR_T(panzer::ScatterDirichletResidual_BlockedTpetra,int,panzer::Ordinal64)

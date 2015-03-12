@@ -81,11 +81,16 @@ public:
 
   ModelEvaluator(const Teuchos::RCP<panzer::FieldManagerBuilder>& fmb,
                  const Teuchos::RCP<panzer::ResponseLibrary<panzer::Traits> >& rLibrary,
-		 const Teuchos::RCP<panzer::LinearObjFactory<panzer::Traits> >& lof,
-		 const std::vector<Teuchos::RCP<Teuchos::Array<std::string> > >& p_names,
+                 const Teuchos::RCP<panzer::LinearObjFactory<panzer::Traits> >& lof,
+                 const std::vector<Teuchos::RCP<Teuchos::Array<std::string> > >& p_names,
                  const Teuchos::RCP<const Thyra::LinearOpWithSolveFactoryBase<Scalar> > & solverFactory,
-		 const Teuchos::RCP<panzer::GlobalData>& global_data,
-		 bool build_transient_support,double t_init);
+                 const Teuchos::RCP<panzer::GlobalData>& global_data,
+                 bool build_transient_support,double t_init);
+
+  ModelEvaluator(const Teuchos::RCP<panzer::LinearObjFactory<panzer::Traits> >& lof,
+                 const Teuchos::RCP<const Thyra::LinearOpWithSolveFactoryBase<Scalar> > & solverFactory,
+                 const Teuchos::RCP<panzer::GlobalData>& global_data,
+                 bool build_transient_support,double t_init);
 
   /** \brief . */
   ModelEvaluator();
@@ -123,6 +128,17 @@ public:
 
   //@}
 
+  void setupModel(const Teuchos::RCP<panzer::WorksetContainer> & wc,
+                  const std::vector<Teuchos::RCP<panzer::PhysicsBlock> >& physicsBlocks,
+                  const std::vector<panzer::BC> & bcs,
+                  const panzer::EquationSetFactory & eqset_factory,
+                  const panzer::BCStrategyFactory& bc_factory,
+                  const panzer::ClosureModelFactory_TemplateManager<panzer::Traits>& volume_cm_factory,
+                  const panzer::ClosureModelFactory_TemplateManager<panzer::Traits>& bc_cm_factory,
+                  const Teuchos::ParameterList& closure_models,
+                  const Teuchos::ParameterList& user_data,
+                  bool writeGraph=false,const std::string & graphPrefix="");
+
   /** Add a simple (i.e. nondistributed) parameter to the model evaluator.
 
       Note that these parameters will automatically use the parameter library
@@ -157,13 +173,16 @@ public:
       \param[in] vs   Vector space that this corresponds to
       \param[in] ged  Global evaluation data object that handles ghosting
       \param[in] initial Initial value to use for this parameter (defaults in the equation set)
+      \param[in] jacLOF Jacobian linear object factory that is required for computing
+                        derivatives with respect to this parameter.
 
       \return The index associated with this parameter for accessing it through the ModelEvaluator interface.
   */
   int addDistributedParameter(const std::string & name,
                               const Teuchos::RCP<const Thyra::VectorSpaceBase<Scalar> > & vs,
                               const Teuchos::RCP<GlobalEvaluationData> & ged,
-                              const Teuchos::RCP<const Thyra::VectorBase<Scalar> > & initial);
+                              const Teuchos::RCP<const Thyra::VectorBase<Scalar> > & initial,
+                              const Teuchos::RCP<const UniqueGlobalIndexerBase> & ugi=Teuchos::null);
 
   /** Add a global evaluation data object that will be filled as a side
     * effect when evalModel is called. This is useful for building things
@@ -214,7 +233,7 @@ public:
     typedef Thyra::ModelEvaluatorBase MEB;
     MEB::OutArgsSetup<Scalar> outArgs;
     outArgs.setModelEvalDescription(this->description());
-    outArgs.set_Np_Ng(parameters_.names.size(), g_space_.size());
+    outArgs.set_Np_Ng(parameters_.size(), g_space_.size());
     outArgs.setSupports(MEB::OUT_ARG_f);
     outArgs.setSupports(MEB::OUT_ARG_W_op);
     prototypeOutArgs_ = outArgs; }
@@ -236,7 +255,7 @@ public:
     typedef Thyra::ModelEvaluatorBase MEB;
     MEB::OutArgsSetup<Scalar> outArgs;
     outArgs.setModelEvalDescription(this->description());
-    outArgs.set_Np_Ng(parameters_.names.size(), g_space_.size());
+    outArgs.set_Np_Ng(parameters_.size(), g_space_.size());
     outArgs.setSupports(MEB::OUT_ARG_f);
     outArgs.setSupports(MEB::OUT_ARG_W_op);
     prototypeOutArgs_ = outArgs; }
@@ -255,6 +274,17 @@ public:
     */
   void applyDirichletBCs(const Teuchos::RCP<Thyra::VectorBase<Scalar> > & x,
                          const Teuchos::RCP<Thyra::VectorBase<Scalar> > & f) const;
+
+  /** Setup all the assembly input arguments required by "inArgs".
+    *
+    * \param[in] inArgs Model evalutor input arguments
+    * \param[in/out] ae_inArgs Assembly engine input arguments.
+    */
+  void setupAssemblyInArgs(const Thyra::ModelEvaluatorBase::InArgs<Scalar> & inArgs,
+                           panzer::AssemblyEngineInArgs & ae_inargs) const;
+
+  Teuchos::RCP<panzer::ResponseLibrary<panzer::Traits> > getResponseLibrary() const
+  { return responseLibrary_; }
 
 private:
 
@@ -275,8 +305,7 @@ private:
                            const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
 
   //! Construct a simple response dicatated by this set of out args
-  void evalModelImpl_basic_g(panzer::AssemblyEngineInArgs ae_inargs,
-                             const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
+  void evalModelImpl_basic_g(const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
                              const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
 
   /** handles evaluation of responses dgdx
@@ -284,18 +313,24 @@ private:
     * \note This method should (basically) be a no-op if <code>required_basic_dgdx(outArgs)==false</code>.
     *       However, for efficiency this is not checked.
     */
-  void evalModelImpl_basic_dgdx(AssemblyEngineInArgs ae_inargs,
-                                const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
+  void evalModelImpl_basic_dgdx(const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
                                 const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
 
   /** handles evaluation of dfdp
     *
-    * \note This method should (basically) be a no-op if <code>required_basic_dfdp(outArgs)==false</code>.
+    * \note This method should (basically) be a no-op if <code>required_basic_dfdp_scalar(outArgs)==false</code>.
     *       However, for efficiency this is not checked.
     */
-  void evalModelImpl_basic_dfdp(AssemblyEngineInArgs ae_inargs,
-                                const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
-                                const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
+  void evalModelImpl_basic_dfdp_scalar(const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
+                                       const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
+
+  /** handles evaluation of dfdp
+    *
+    * \note This method should (basically) be a no-op if <code>required_basic_dfdp_distro(outArgs)==false</code>.
+    *       However, for efficiency this is not checked.
+    */
+  void evalModelImpl_basic_dfdp_distro(const Thyra::ModelEvaluatorBase::InArgs<Scalar> &inArgs,
+                                       const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
 
   //! Does this set of out args require a simple response?
   bool required_basic_g(const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
@@ -303,13 +338,35 @@ private:
   //! Are their required responses in the out args? DgDx 
   bool required_basic_dgdx(const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
 
-  //! Are derivatives of the residual with respect to the parameters in the out args? DfDp 
-  bool required_basic_dfdp(const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
+  //! Are derivatives of the residual with respect to the scalar parameters in the out args? DfDp 
+  bool required_basic_dfdp_scalar(const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
+
+  //! Are derivatives of the residual with respect to the distributed parameters in the out args? DfDp 
+  bool required_basic_dfdp_distro(const Thyra::ModelEvaluatorBase::OutArgs<Scalar> &outArgs) const;
 
   //! Initialize the nominal values with good starting conditions
   void initializeNominalValues();
 
 private: // data members
+
+  struct ParameterObject {
+    bool is_distributed; // or (is scalar?)
+    Teuchos::RCP<Teuchos::Array<std::string> > names;
+    Teuchos::RCP<const Thyra::VectorSpaceBase<Scalar> > space;
+    Teuchos::RCP<const Thyra::VectorBase<Scalar> > initial_value;
+
+    // for distributed parameters
+    Teuchos::RCP<const UniqueGlobalIndexerBase> global_indexer;
+
+    // for scalar parameters
+    panzer::ParamVec scalar_value;
+  };
+
+  Teuchos::RCP<ParameterObject> createScalarParameter(const Teuchos::Array<std::string> & names) const;
+  Teuchos::RCP<ParameterObject> createDistributedParameter(const std::string & key,
+                        const Teuchos::RCP<const Thyra::VectorSpaceBase<Scalar> > & vs,
+                        const Teuchos::RCP<const Thyra::VectorBase<Scalar> > & initial,
+                        const Teuchos::RCP<const UniqueGlobalIndexerBase> & ugi) const;
 
   double t_init_;
 
@@ -321,26 +378,15 @@ private: // data members
 
   mutable Thyra::ModelEvaluatorBase::InArgs<Scalar> nominalValues_;
 
-  Teuchos::RCP<panzer::FieldManagerBuilder> fmb_;
   mutable panzer::AssemblyEngine_TemplateManager<panzer::Traits> ae_tm_;     // they control and provide access to evaluate
 
-  // parameters
-  mutable struct { 
-    std::vector<Teuchos::RCP<Teuchos::Array<std::string> > > names;
-    std::vector<Teuchos::RCP<const Thyra::VectorSpaceBase<Scalar> > > spaces;
-    std::vector<Teuchos::RCP<const Thyra::VectorBase<Scalar> > > initial_values;
-    std::vector<bool> are_distributed;
-
-    // for interaction with the panzer::ParamLib
-    std::vector<int> scalar_index;
-    mutable std::vector<panzer::ParamVec> scalar_values;
-  } parameters_;
+  std::vector<Teuchos::RCP<ParameterObject> > parameters_;
 
   mutable bool require_in_args_refresh_;
   mutable bool require_out_args_refresh_;
 
   // responses
-  mutable Teuchos::RCP<panzer::ResponseLibrary<panzer::Traits> > responseLibrary_; // These objects are basically the same
+  mutable Teuchos::RCP<panzer::ResponseLibrary<panzer::Traits> > responseLibrary_;
   std::vector<Teuchos::RCP<const Thyra::VectorSpaceBase<Scalar> > > g_space_;
   std::vector<std::string> g_names_;
 

@@ -84,14 +84,14 @@ public:
   typedef HostSpace::size_type  size_type ;
   //! This device's preferred memory space.
   typedef HostSpace             memory_space ;
+  //! This execution space preferred device_type
+  typedef Kokkos::Device<execution_space,memory_space> device_type;
+
   //! This device's preferred array layout.
   typedef LayoutRight           array_layout ;
 
   /// \brief  Scratch memory space
   typedef ScratchMemorySpace< Kokkos::Serial >  scratch_memory_space ;
-
-  //! For backward compatibility:
-  typedef Serial                device_type ;
 
   //@}
 
@@ -268,20 +268,6 @@ public:
   template< typename Type >
   KOKKOS_INLINE_FUNCTION Type team_scan( const Type & ) const
     { return Type(0); }
-
-#ifdef KOKKOS_HAVE_CXX11
-
-  /** \brief  Executes op(iType i) for each i=0..N-1.
-   *
-   * This functionality requires C++11 support.*/
-  template< typename iType, class Operation>
-  KOKKOS_INLINE_FUNCTION void team_par_for(const iType n, const Operation & op) const {
-    for(int i=0; i<n ; i++) {
-      op(i);
-    }
-  }
-
-#endif
 
   //----------------------------------------
   // Execution space specific:
@@ -641,47 +627,66 @@ public:
 namespace Kokkos {
 
 namespace Impl {
-  template<typename iType>
-  struct TeamThreadLoopBoundariesStruct<iType,SerialTeamMember> {
-    typedef iType index_type;
-    enum {start = 0};
-    const iType end;
-    enum {increment = 1};
-    const SerialTeamMember& thread;
 
-    KOKKOS_INLINE_FUNCTION
-    TeamThreadLoopBoundariesStruct (const SerialTeamMember& thread_, const iType& count):
-      end(count),
-      thread(thread_)
+template<typename iType>
+struct TeamThreadRangeBoundariesStruct<iType,SerialTeamMember> {
+  typedef iType index_type;
+  const iType begin ;
+  const iType end ;
+  enum {increment = 1};
+  const SerialTeamMember& thread;
+
+  KOKKOS_INLINE_FUNCTION
+  TeamThreadRangeBoundariesStruct (const SerialTeamMember& arg_thread, const iType& arg_count)
+    : begin(0)
+    , end(arg_count)
+    , thread(arg_thread)
     {}
-  };
+
+  KOKKOS_INLINE_FUNCTION
+  TeamThreadRangeBoundariesStruct (const SerialTeamMember& arg_thread, const iType& arg_begin, const iType & arg_end )
+    : begin( arg_begin )
+    , end(   arg_end)
+    , thread( arg_thread )
+    {}
+};
 
   template<typename iType>
-  struct ThreadVectorLoopBoundariesStruct<iType,SerialTeamMember> {
+  struct ThreadVectorRangeBoundariesStruct<iType,SerialTeamMember> {
     typedef iType index_type;
     enum {start = 0};
     const iType end;
     enum {increment = 1};
 
     KOKKOS_INLINE_FUNCTION
-    ThreadVectorLoopBoundariesStruct (const SerialTeamMember& thread, const iType& count):
+    ThreadVectorRangeBoundariesStruct (const SerialTeamMember& thread, const iType& count):
       end( count )
     {}
   };
+
 } // namespace Impl
 
 template<typename iType>
 KOKKOS_INLINE_FUNCTION
-Impl::TeamThreadLoopBoundariesStruct<iType,Impl::SerialTeamMember>
-  TeamThreadLoop(const Impl::SerialTeamMember& thread, const iType& count) {
-  return Impl::TeamThreadLoopBoundariesStruct<iType,Impl::SerialTeamMember>(thread,count);
+Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>
+TeamThreadRange( const Impl::SerialTeamMember& thread, const iType & count )
+{
+  return Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>(thread,count);
 }
 
 template<typename iType>
 KOKKOS_INLINE_FUNCTION
-Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::SerialTeamMember >
-  ThreadVectorLoop(const Impl::SerialTeamMember& thread, const iType& count) {
-  return Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::SerialTeamMember >(thread,count);
+Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>
+TeamThreadRange( const Impl::SerialTeamMember& thread, const iType & begin , const iType & end )
+{
+  return Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>(thread,begin,end);
+}
+
+template<typename iType>
+KOKKOS_INLINE_FUNCTION
+Impl::ThreadVectorRangeBoundariesStruct<iType,Impl::SerialTeamMember >
+  ThreadVectorRange(const Impl::SerialTeamMember& thread, const iType& count) {
+  return Impl::ThreadVectorRangeBoundariesStruct<iType,Impl::SerialTeamMember >(thread,count);
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -704,8 +709,8 @@ namespace Kokkos {
    * This functionality requires C++11 support.*/
 template<typename iType, class Lambda>
 KOKKOS_INLINE_FUNCTION
-void parallel_for(const Impl::TeamThreadLoopBoundariesStruct<iType,Impl::SerialTeamMember>& loop_boundaries, const Lambda& lambda) {
-  for( iType i = loop_boundaries.start; i < loop_boundaries.end; i+=loop_boundaries.increment)
+void parallel_for(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>& loop_boundaries, const Lambda& lambda) {
+  for( iType i = loop_boundaries.begin; i < loop_boundaries.end; i+=loop_boundaries.increment)
     lambda(i);
 }
 
@@ -715,12 +720,12 @@ void parallel_for(const Impl::TeamThreadLoopBoundariesStruct<iType,Impl::SerialT
  * val is performed and put into result. This functionality requires C++11 support.*/
 template< typename iType, class Lambda, typename ValueType >
 KOKKOS_INLINE_FUNCTION
-void parallel_reduce(const Impl::TeamThreadLoopBoundariesStruct<iType,Impl::SerialTeamMember>& loop_boundaries,
+void parallel_reduce(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>& loop_boundaries,
                      const Lambda & lambda, ValueType& result) {
 
   result = ValueType();
 
-  for( iType i = loop_boundaries.start; i < loop_boundaries.end; i+=loop_boundaries.increment) {
+  for( iType i = loop_boundaries.begin; i < loop_boundaries.end; i+=loop_boundaries.increment) {
     ValueType tmp = ValueType();
     lambda(i,tmp);
     result+=tmp;
@@ -738,12 +743,12 @@ void parallel_reduce(const Impl::TeamThreadLoopBoundariesStruct<iType,Impl::Seri
  * '1 for *'). This functionality requires C++11 support.*/
 template< typename iType, class Lambda, typename ValueType, class JoinType >
 KOKKOS_INLINE_FUNCTION
-void parallel_reduce(const Impl::TeamThreadLoopBoundariesStruct<iType,Impl::SerialTeamMember>& loop_boundaries,
+void parallel_reduce(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::SerialTeamMember>& loop_boundaries,
                      const Lambda & lambda, const JoinType& join, ValueType& init_result) {
 
   ValueType result = init_result;
 
-  for( iType i = loop_boundaries.start; i < loop_boundaries.end; i+=loop_boundaries.increment) {
+  for( iType i = loop_boundaries.begin; i < loop_boundaries.end; i+=loop_boundaries.increment) {
     ValueType tmp = ValueType();
     lambda(i,tmp);
     join(result,tmp);
@@ -761,7 +766,7 @@ namespace Kokkos {
  * This functionality requires C++11 support.*/
 template<typename iType, class Lambda>
 KOKKOS_INLINE_FUNCTION
-void parallel_for(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::SerialTeamMember >&
+void parallel_for(const Impl::ThreadVectorRangeBoundariesStruct<iType,Impl::SerialTeamMember >&
     loop_boundaries, const Lambda& lambda) {
   #ifdef KOKKOS_HAVE_PRAGMA_IVDEP
   #pragma ivdep
@@ -776,7 +781,7 @@ void parallel_for(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::Seria
  * val is performed and put into result. This functionality requires C++11 support.*/
 template< typename iType, class Lambda, typename ValueType >
 KOKKOS_INLINE_FUNCTION
-void parallel_reduce(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::SerialTeamMember >&
+void parallel_reduce(const Impl::ThreadVectorRangeBoundariesStruct<iType,Impl::SerialTeamMember >&
       loop_boundaries, const Lambda & lambda, ValueType& result) {
   result = ValueType();
 #ifdef KOKKOS_HAVE_PRAGMA_IVDEP
@@ -798,7 +803,7 @@ void parallel_reduce(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::Se
  * '1 for *'). This functionality requires C++11 support.*/
 template< typename iType, class Lambda, typename ValueType, class JoinType >
 KOKKOS_INLINE_FUNCTION
-void parallel_reduce(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::SerialTeamMember >&
+void parallel_reduce(const Impl::ThreadVectorRangeBoundariesStruct<iType,Impl::SerialTeamMember >&
       loop_boundaries, const Lambda & lambda, const JoinType& join, ValueType& init_result) {
 
   ValueType result = init_result;
@@ -825,7 +830,7 @@ void parallel_reduce(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::Se
  * This functionality requires C++11 support.*/
 template< typename iType, class FunctorType >
 KOKKOS_INLINE_FUNCTION
-void parallel_scan(const Impl::ThreadVectorLoopBoundariesStruct<iType,Impl::SerialTeamMember >&
+void parallel_scan(const Impl::ThreadVectorRangeBoundariesStruct<iType,Impl::SerialTeamMember >&
       loop_boundaries, const FunctorType & lambda) {
 
   typedef Kokkos::Impl::FunctorValueTraits< FunctorType , void > ValueTraits ;
