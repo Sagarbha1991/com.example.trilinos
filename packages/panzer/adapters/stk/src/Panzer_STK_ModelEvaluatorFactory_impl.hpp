@@ -289,8 +289,8 @@ namespace panzer_stk {
     // Build mesh factory and uncommitted mesh
     ////////////////////////////////////////////////////////////////////////////////////////
 
-    Teuchos::RCP<panzer_stk_classic::STK_MeshFactory> mesh_factory = this->buildSTKMeshFactory(mesh_params);
-    Teuchos::RCP<panzer_stk_classic::STK_Interface> mesh = mesh_factory->buildUncommitedMesh(*(mpi_comm->getRawMpiComm()));
+    Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory = this->buildSTKMeshFactory(mesh_params);
+    Teuchos::RCP<panzer_stk::STK_Interface> mesh = mesh_factory->buildUncommitedMesh(*(mpi_comm->getRawMpiComm()));
     m_mesh = mesh;
 
     m_eqset_factory = eqset_factory;
@@ -346,7 +346,7 @@ namespace panzer_stk {
   
       // register cell averaged components of vector fields 
       // just allocate space for the fields here. The actual calculation and writing 
-      // are done by panzer_stk_classic::ScatterCellAvgVector.
+      // are done by panzer_stk::ScatterCellAvgVector.
       Teuchos::ParameterList & cellAvgVectors = output_list.sublist("Cell Average Vectors");
       for(Teuchos::ParameterList::ConstIterator itr = cellAvgVectors.begin();
           itr != cellAvgVectors.end(); ++itr) {
@@ -443,7 +443,7 @@ namespace panzer_stk {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     Teuchos::RCP<panzer::WorksetFactoryBase> wkstFactory
-       = Teuchos::rcp(new panzer_stk_classic::WorksetFactory(mesh)); // build STK workset factory
+       = Teuchos::rcp(new panzer_stk::WorksetFactory(mesh)); // build STK workset factory
 
     // build the connection manager
     ////////////////////////////////////////////////////////////////////////////////////////
@@ -637,7 +637,7 @@ namespace panzer_stk {
     // setup the closure model for automatic writing (during residual/jacobian update)
     ////////////////////////////////////////////////////////////////////////////////////////
 
-    panzer_stk_classic::IOClosureModelFactory_TemplateBuilder<panzer::Traits> io_cm_builder(user_cm_factory,mesh,output_list);
+    panzer_stk::IOClosureModelFactory_TemplateBuilder<panzer::Traits> io_cm_builder(user_cm_factory,mesh,output_list);
     panzer::ClosureModelFactory_TemplateManager<panzer::Traits> cm_factory;
     cm_factory.buildObjects(io_cm_builder);
 
@@ -815,7 +815,7 @@ namespace panzer_stk {
                          const Teuchos::RCP<panzer::WorksetContainer> & wc,
                          const Teuchos::RCP<panzer::UniqueGlobalIndexerBase> & ugi,
                          const Teuchos::RCP<panzer::LinearObjFactory<panzer::Traits> > & lof,
-                         const Teuchos::RCP<panzer_stk_classic::STK_Interface> & mesh,
+                         const Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
                          const panzer::ClosureModelFactory_TemplateManager<panzer::Traits> & cm_factory,
                          const Teuchos::ParameterList & closure_model_pl,
                          const Teuchos::ParameterList & user_data_pl,

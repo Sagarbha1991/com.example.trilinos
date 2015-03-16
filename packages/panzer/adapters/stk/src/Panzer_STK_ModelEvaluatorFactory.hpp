@@ -219,7 +219,7 @@ namespace panzer_stk {
                                 const Teuchos::RCP<panzer::WorksetContainer> & wc,
                                 const Teuchos::RCP<panzer::UniqueGlobalIndexerBase> & ugi,
                                 const Teuchos::RCP<panzer::LinearObjFactory<panzer::Traits> > & lof,
-                                const Teuchos::RCP<panzer_stk_classic::STK_Interface> & mesh,
+                                const Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
                                 const panzer::ClosureModelFactory_TemplateManager<panzer::Traits> & cm_factory,
                                 const Teuchos::ParameterList & closure_model_pl,
                                 const Teuchos::ParameterList & user_data_pl,
@@ -247,13 +247,13 @@ namespace panzer_stk {
      * \param [in] mesh STK Mesh database used if the time value should come from the exodus file
     */
     double getInitialTime(Teuchos::ParameterList& transient_ic_params,
-                          const panzer_stk_classic::STK_Interface& mesh) const;
+                          const panzer_stk::STK_Interface& mesh) const;
 
     Teuchos::RCP<Thyra::LinearOpWithSolveFactoryBase<double> >
     buildLOWSFactory(bool blockedAssembly,
                      const Teuchos::RCP<const panzer::UniqueGlobalIndexerBase> & globalIndexer,
                      const Teuchos::RCP<panzer::ConnManagerBase<int> > & conn_manager,
-                     const Teuchos::RCP<panzer_stk_classic::STK_Interface> & mesh,
+                     const Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
                      const Teuchos::RCP<const Teuchos::MpiComm<int> > & mpi_comm);
 
     //! Get the workset container associated with the mesh database.
