@@ -71,6 +71,19 @@ Task * const    s_denied = reinterpret_cast<Task*>( ~((unsigned long)0) - 1 );
 
 namespace Kokkos {
 namespace Experimental {
+
+TaskPolicy< Kokkos::Threads >::member_type &
+TaskPolicy< Kokkos::Threads >::member_null()
+{
+  static member_type s ;
+  return s ;
+}
+
+} /* namespace Experimental */
+} /* namespace Kokkos */
+
+namespace Kokkos {
+namespace Experimental {
 namespace Impl {
 
 //----------------------------------------------------------------------------
@@ -314,33 +327,35 @@ fflush( stderr );
 
 void Task::add_dependence( Task * before )
 {
-  int const state = *((volatile const int *) & m_state );
+  if ( before != 0 ) {
 
- // Can add dependence during construction or during execution
+    int const state = *((volatile const int *) & m_state );
 
-  if ( ( Kokkos::Experimental::TASK_STATE_CONSTRUCTING == state ||
-         Kokkos::Experimental::TASK_STATE_EXECUTING    == state ) &&
-       before != 0 &&
-       m_dep_size < m_dep_capacity ) {
+    // Can add dependence during construction or during execution
 
-    ++m_dep_size ;
+    if ( ( Kokkos::Experimental::TASK_STATE_CONSTRUCTING == state ||
+           Kokkos::Experimental::TASK_STATE_EXECUTING    == state ) &&
+         m_dep_size < m_dep_capacity ) {
 
-    assign( m_dep + (m_dep_size-1) , before );
+      ++m_dep_size ;
 
-    memory_fence();
-  }
-  else {
+      assign( m_dep + (m_dep_size-1) , before );
+
+      memory_fence();
+    }
+    else {
 
 fprintf( stderr
-       , "TaskMember< Threads >::add_dependence ERROR : task[%lx]{ state(%d) dep_size(%d) before(%lx) }\n"
+       , "TaskMember< Threads >::add_dependence ERROR : task[%lx]{ state(%d) dep_size(%d) m_dep_capacity(%d) }\n"
        , (unsigned long) this
        , m_state
        , m_dep_size
-       , (unsigned long) before
+       , m_dep_capacity
        );
 fflush( stderr );
 
-    Kokkos::Impl::throw_runtime_exception("TaskMember< Threads >::add_dependence ERROR");
+      Kokkos::Impl::throw_runtime_exception("TaskMember< Threads >::add_dependence ERROR");
+    }
   }
 }
 
@@ -471,7 +486,7 @@ void Task::execute_ready_tasks_driver( Kokkos::Impl::ThreadsExec & exec , const 
   // Whole pool is calling this function
 
   // Create the thread team member with shared memory for the given task.
-  member_type member( exec , TeamPolicy< Kokkos::Threads >( 1 , team_fixed_size() ) , 0 );
+  member_type member( & exec , TeamPolicy< Kokkos::Threads >( 1 , team_fixed_size() ) , 0 );
 
   Kokkos::Impl::ThreadsExec & exec_team_base = member.threads_exec_team_base();
 

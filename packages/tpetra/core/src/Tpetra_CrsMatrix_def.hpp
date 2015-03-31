@@ -4172,12 +4172,10 @@ namespace Tpetra {
     const char tfecfFuncName[] = "localMultiply()";
 #endif // HAVE_TPETRA_DEBUG
     typedef Teuchos::ScalarTraits<RangeScalar> RST;
-    // const KokkosClassic::MultiVector<DomainScalar,Node> *lclX = &X.getLocalMV();
     KokkosClassic::MultiVector<DomainScalar,Node> X_lcl = X.getLocalMV ();
     const KokkosClassic::MultiVector<DomainScalar,Node>* lclX = &X_lcl;
 
     KokkosClassic::MultiVector<RangeScalar,Node> Y_lcl = Y.getLocalMV ();
-    // KokkosClassic::MultiVector<RangeScalar,Node>        *lclY = &Y.getLocalMVNonConst();
     KokkosClassic::MultiVector<RangeScalar,Node>* lclY = &Y_lcl;
 
 #ifdef HAVE_TPETRA_DEBUG
@@ -4270,11 +4268,9 @@ namespace Tpetra {
     const char tfecfFuncName[] = "localSolve()";
 #endif // HAVE_TPETRA_DEBUG
 
-    //const KokkosClassic::MultiVector<RangeScalar,Node> *lclY = &Y.getLocalMV();
     KokkosClassic::MultiVector<RangeScalar,Node> Y_lcl = Y.getLocalMV ();
     const KokkosClassic::MultiVector<RangeScalar,Node>* lclY = &Y_lcl;
 
-    //KokkosClassic::MultiVector<DomainScalar,Node>      *lclX = &X.getLocalMVNonConst();
     KokkosClassic::MultiVector<DomainScalar,Node> X_lcl = X.getLocalMV ();
     KokkosClassic::MultiVector<DomainScalar,Node>* lclX = &X_lcl;
 
@@ -5681,6 +5677,14 @@ namespace Tpetra {
     typedef CrsMatrix<Scalar, LO, GO, NT> this_type;
     typedef Vector<int,LO,GO,NT> IntVectorType;
 
+#ifdef HAVE_TPETRA_MMM_TIMINGS
+    std::string label;
+    label = params.get("Timer Label",label);
+    std::string prefix = std::string("Tpetra ")+ label + std::string(": ");
+    using Teuchos::TimeMonitor;
+    Teuchos::RCP<Teuchos::TimeMonitor> MM = Teuchos::rcp(new TimeMonitor(*TimeMonitor::getNewTimer(prefix + std::string("TAFC Pack"))));
+#endif
+
     // Make sure that the input argument rowTransfer is either an
     // Import or an Export.  Import and Export are the only two
     // subclasses of Transfer that we defined, but users might
@@ -5861,7 +5865,6 @@ namespace Tpetra {
     /***************************************************/
     /***** 2) From Tpera::DistObject::doTransfer() ****/
     /***************************************************/
-
     // Get the owning PIDs
     RCP<const import_type> MyImporter = getGraph ()->getImporter ();
 
@@ -5985,6 +5988,11 @@ namespace Tpetra {
     // numExportPacketsPerLID_ each have only a device view.
     // numImportPacketsPerLIDs_ is a device view, and also has a host
     // view (host_numImportPacketsPerLID_).
+
+#ifdef HAVE_TPETRA_MMM_TIMINGS
+    MM = Teuchos::rcp(new TimeMonitor(*TimeMonitor::getNewTimer(prefix + std::string("TAFC doTransfer"))));
+#endif 
+
     if (communication_needed) {
       if (reverseMode) {
         if (constantNumPackets == 0) { // variable number of packets per LID
@@ -6031,6 +6039,9 @@ namespace Tpetra {
     /*********************************************************************/
     /**** 3) Copy all of the Same/Permute/Remote data into CSR_arrays ****/
     /*********************************************************************/
+#ifdef HAVE_TPETRA_MMM_TIMINGS
+    MM = Teuchos::rcp(new TimeMonitor(*TimeMonitor::getNewTimer(prefix + std::string("TAFC unpack"))));
+#endif 
 
     // FIXME (mfh 15 May 2014) This should work fine if CrsMatrix
     // inherits from DistObject (in which case all arrays that get
@@ -6169,6 +6180,10 @@ namespace Tpetra {
     /**** 7) Build Importer & Call ESFC             ****/
     /***************************************************/
     // Pre-build the importer using the existing PIDs
+#ifdef HAVE_TPETRA_MMM_TIMINGS
+    MM = Teuchos::rcp(new TimeMonitor(*TimeMonitor::getNewTimer(prefix + std::string("TAFC ESFC"))));
+#endif 
+
     RCP<import_type> MyImport = rcp (new import_type (MyDomainMap, MyColMap, RemotePids));
     destMat->expertStaticFillComplete (MyDomainMap, MyRangeMap, MyImport);
   }

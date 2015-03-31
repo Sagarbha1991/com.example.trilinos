@@ -55,6 +55,7 @@ namespace impl {
 //----------------------------------------------------------------------
 
 void find_elements_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
+void find_faces_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& faces);
 
 bool do_these_nodes_have_any_shell_elements_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes);
 
@@ -81,54 +82,57 @@ void internal_clean_and_verify_parallel_change(
 int check_no_shared_elements_or_higher(const BulkData& mesh);
 int check_for_connected_nodes(const BulkData& mesh);
 
-template <typename Topology>
-typename boost::enable_if_c< (Topology::num_faces > 0u), void>::type
-find_face_nodes_for_side(BulkData& mesh, Entity& element, int side_ordinal, EntityVector & permuted_face_nodes)
-{
-    typedef topology::topology_type< Topology::value> ElemTopology;
-    ElemTopology elemTopology;
-    stk::topology faceTopology = elemTopology.face_topology(side_ordinal);
+//template <typename Topology>
+//typename boost::enable_if_c< (Topology::num_faces > 0u), void>::type
+//find_face_nodes_for_side(BulkData& mesh, Entity& element, int side_ordinal, EntityVector & permuted_face_nodes)
+//{
+//    typedef topology::topology_type< Topology::value> ElemTopology;
+//    ElemTopology elemTopology;
+//    stk::topology faceTopology = elemTopology.face_topology(side_ordinal);
+//
+//    boost::array<EntityId,Topology::num_nodes> elem_node_ids;
+//    Entity const *elem_nodes = mesh.begin_nodes(element);
+//    ThrowRequire(mesh.num_nodes(element) == Topology::num_nodes);
+//    for (size_t n=0; n<Topology::num_nodes; ++n) {
+//        elem_node_ids[n] = mesh.identifier(elem_nodes[n]);
+//    }
+//
+//    // Use node identifier instead of node local_offset for cross-processor consistency.
+//    typedef std::vector<EntityId>  EntityIdVector;
+//    EntityIdVector side_node_ids(faceTopology.num_nodes());
+//    Topology::face_nodes(elem_node_ids, side_ordinal, side_node_ids.begin());
+//    unsigned smallest_permutation;
+//    permuted_face_nodes.resize(faceTopology.num_nodes());
+//    //if this is a shell OR these nodes are connected to a shell
+//    EntityVector side_nodes(faceTopology.num_nodes());
+//    for (unsigned count=0 ; count<faceTopology.num_nodes() ; ++count) {
+//        side_nodes[count] = mesh.get_entity(stk::topology::NODE_RANK,side_node_ids[count]);
+//    }
+//    bool is_connected_to_shell = stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh,faceTopology.num_nodes(),&side_nodes[0]);
+//
+//    if (elemTopology.is_shell || is_connected_to_shell) {
+//
+//        EntityIdVector element_node_id_vector(faceTopology.num_nodes());
+//        EntityIdVector element_node_ordinal_vector(faceTopology.num_nodes());
+//        EntityVector element_node_vector(faceTopology.num_nodes());
+//        elemTopology.face_node_ordinals(side_ordinal, &element_node_ordinal_vector[0]);
+//        for (unsigned count = 0; count < faceTopology.num_nodes(); ++count) {
+//            element_node_vector[count] = mesh.begin_nodes(element)[element_node_ordinal_vector[count]];
+//            element_node_id_vector[count] = mesh.identifier(element_node_vector[count]);
+//        }
+//        smallest_permutation = faceTopology.lexicographical_smallest_permutation_preserve_polarity(side_node_ids, element_node_id_vector);
+//        faceTopology.permutation_nodes(&element_node_vector[0], smallest_permutation, permuted_face_nodes.begin());
+//    }
+//    else {
+//        smallest_permutation = faceTopology.lexicographical_smallest_permutation(side_node_ids);
+//        EntityVector face_nodes(faceTopology.num_nodes());
+//        Topology::face_nodes(elem_nodes, side_ordinal, face_nodes.begin());
+//        faceTopology.permutation_nodes(face_nodes, smallest_permutation, permuted_face_nodes.begin());
+//    }
+//}
 
-    boost::array<EntityId,Topology::num_nodes> elem_node_ids;
-    Entity const *elem_nodes = mesh.begin_nodes(element);
-    ThrowRequire(mesh.num_nodes(element) == Topology::num_nodes);
-    for (size_t n=0; n<Topology::num_nodes; ++n) {
-        elem_node_ids[n] = mesh.identifier(elem_nodes[n]);
-    }
+void find_face_nodes_for_side(BulkData& mesh, Entity element, int side_ordinal, EntityVector & permuted_face_nodes);
 
-    // Use node identifier instead of node local_offset for cross-processor consistency.
-    typedef std::vector<EntityId>  EntityIdVector;
-    EntityIdVector side_node_ids(faceTopology.num_nodes());
-    Topology::face_nodes(elem_node_ids, side_ordinal, side_node_ids.begin());
-    unsigned smallest_permutation;
-    permuted_face_nodes.resize(faceTopology.num_nodes());
-    //if this is a shell OR these nodes are connected to a shell
-    EntityVector side_nodes(faceTopology.num_nodes());
-    for (unsigned count=0 ; count<faceTopology.num_nodes() ; ++count) {
-        side_nodes[count] = mesh.get_entity(stk::topology::NODE_RANK,side_node_ids[count]);
-    }
-    bool is_connected_to_shell = stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh,faceTopology.num_nodes(),&side_nodes[0]);
-
-    if (elemTopology.is_shell || is_connected_to_shell) {
-
-        EntityIdVector element_node_id_vector(faceTopology.num_nodes());
-        EntityIdVector element_node_ordinal_vector(faceTopology.num_nodes());
-        EntityVector element_node_vector(faceTopology.num_nodes());
-        elemTopology.face_node_ordinals(side_ordinal, &element_node_ordinal_vector[0]);
-        for (unsigned count = 0; count < faceTopology.num_nodes(); ++count) {
-            element_node_vector[count] = mesh.begin_nodes(element)[element_node_ordinal_vector[count]];
-            element_node_id_vector[count] = mesh.identifier(element_node_vector[count]);
-        }
-        smallest_permutation = faceTopology.lexicographical_smallest_permutation_preserve_polarity(side_node_ids, element_node_id_vector);
-        faceTopology.permutation_nodes(&element_node_vector[0], smallest_permutation, permuted_face_nodes.begin());
-    }
-    else {
-        smallest_permutation = faceTopology.lexicographical_smallest_permutation(side_node_ids);
-        EntityVector face_nodes(faceTopology.num_nodes());
-        Topology::face_nodes(elem_nodes, side_ordinal, face_nodes.begin());
-        faceTopology.permutation_nodes(face_nodes, smallest_permutation, permuted_face_nodes.begin());
-    }
-}
 
 template<class DO_THIS_FOR_ENTITY_IN_CLOSURE, class DESIRED_ENTITY>
 void VisitClosureGeneral(
@@ -384,8 +388,58 @@ void VisitAuraClosure(
 
 stk::parallel::DistributedIndex::KeySpanVector convert_entity_keys_to_spans( const MetaData & meta );
 
-void internal_fix_node_sharing_delete_on_2015_03_06(stk::mesh::BulkData& bulk_data);
+void get_part_ordinals_to_induce_on_lower_ranks_except_for_omits(const BulkData& mesh,
+                             const Entity entity_from ,
+                             const OrdinalVector       & omit ,
+                             EntityRank            entity_rank_to ,
+                             OrdinalVector       & induced_parts);
 
+stk::mesh::Entity get_or_create_face_at_element_side(stk::mesh::BulkData & bulk,
+                                                     stk::mesh::Entity elem,
+                                                     int side_ordinal,
+                                                     int new_face_global_id,
+                                                     stk::mesh::Part & part);
+
+void connect_face_to_other_elements(stk::mesh::BulkData & bulk,
+                                    stk::mesh::Entity face,
+                                    stk::mesh::Entity elem_with_face,
+                                    int elem_with_face_side_ordinal);
+
+
+enum ShellStatus {
+    NO_SHELLS = 25,
+    YES_SHELLS_ONE_SHELL_ONE_SOLID = 31,
+    YES_SHELLS_BOTH_SHELLS_OR_BOTH_SOLIDS = 46
+};
+
+void create_shell_status(const std::vector<stk::topology> & elements_touching_surface, stk::topology original_element_topology, std::vector<ShellStatus> & element_shell_status);
+
+template<typename ENTITY_ID>
+bool should_face_be_connected_to_element_side(std::vector<ENTITY_ID> & face_nodes,
+                                              std::vector<ENTITY_ID> & element_side_nodes,
+                                              stk::topology element_side_topology,
+                                              ShellStatus  shell_status)
+{
+    bool should_connect = false;
+    const std::pair<bool, unsigned> equiv_result = element_side_topology.equivalent(face_nodes, element_side_nodes);
+    const bool nodes_match = equiv_result.first;
+    if (nodes_match) {
+       if (NO_SHELLS == shell_status) {
+           should_connect = true;
+       }
+       else {
+           const unsigned permutation_of_element_side = equiv_result.second;
+           const bool element_side_polarity_matches_face_nodes = permutation_of_element_side < element_side_topology.num_positive_permutations();
+           if (YES_SHELLS_ONE_SHELL_ONE_SOLID == shell_status) {
+               should_connect = !element_side_polarity_matches_face_nodes;
+           }
+           else { // YES_SHELLS_BOTH_SHELS_OR_BOTH_SOLIDS
+               should_connect = element_side_polarity_matches_face_nodes;
+           }
+       }
+    }
+    return should_connect;
+}
 
 } // namespace impl
 } // namespace mesh

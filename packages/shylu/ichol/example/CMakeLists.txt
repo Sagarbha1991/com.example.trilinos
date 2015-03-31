@@ -104,7 +104,6 @@ TRIBITS_ADD_EXECUTABLE(
   COMM serial mpi
   )
 
-
 # Sparse BLAS level 1
 # ===================
 
@@ -138,11 +137,17 @@ TRIBITS_ADD_EXECUTABLE(
 # Benchmark
 # ==========
 
-#TRIBITS_ADD_EXECUTABLE(
-#  ichol_strong_scale
-#  SOURCES ichol_strong_scale.cpp
-#  COMM serial mpi
-#  )
+TRIBITS_ADD_EXECUTABLE(
+ ichol_performance
+ SOURCES ichol_performance.cpp
+ COMM serial mpi
+ )
+
+TRIBITS_ADD_EXECUTABLE(
+ ichol_graphviz
+ SOURCES ichol_graphviz.cpp
+ COMM serial mpi
+ )
 
 
 TRIBITS_COPY_FILES_TO_BINARY_DIR(ShyLUICHOL_SimpleSparseTest_File

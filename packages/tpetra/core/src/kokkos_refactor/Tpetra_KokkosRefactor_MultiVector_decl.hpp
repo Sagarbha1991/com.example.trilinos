@@ -1105,19 +1105,6 @@ namespace Tpetra {
     ///   backwards compatibility use case.
     KokkosClassic::MultiVector<Scalar, node_type> getLocalMV () const;
 
-    /// \brief A nonconst reference to a view of the underlying
-    ///   KokkosClassic::MultiVector object.
-    ///
-    /// \brief This method is for expert users only.
-    ///   It may change or be removed at any time.
-    ///
-    /// \warning This method is DEPRECATED.  It may disappear at any
-    ///   time.  Please call getLocalMV() instead.  There was never
-    ///   actually a need for a getLocalMVNonConst() method, as far as
-    ///   I can tell.
-    TEUCHOS_DEPRECATED KokkosClassic::MultiVector<Scalar, node_type>
-    getLocalMVNonConst ();
-
     /// \brief Get the Kokkos::DualView which implements local storage.
     ///
     /// Instead of getting the Kokkos::DualView, we highly recommend
@@ -1919,14 +1906,8 @@ namespace Tpetra {
               const EWhichNorm whichNorm) const;
 
     //@}
-    //! @name View constructors, used only by nonmember constructors.
+    //! @name Misc. implementation details
     //@{
-
-    template <class S,class LO,class GO,class N>
-    friend Teuchos::RCP<MultiVector<S,LO,GO,N> >
-    createMultiVectorFromView (const Teuchos::RCP<const Map<LO, GO, N> >&,
-                               const Teuchos::ArrayRCP<S>&,
-                               const size_t, const size_t);
 
     // Return true if and only if VectorIndex is a valid column index.
     bool vectorIndexOutOfRange (const size_t VectorIndex) const;
@@ -1959,7 +1940,7 @@ namespace Tpetra {
     //! Number of packets to send per LID
     virtual size_t constantNumberOfPackets () const;
 
-    /// \brief Whether lass implements old or new interface
+    //! Whether this class implements the old or new interface of DistObject.
     virtual bool useNewInterface () { return true; }
 
     virtual void
@@ -2049,31 +2030,6 @@ namespace Tpetra {
       }
     };
 
-    // Partial specialization for the Kokkos refactor specialization
-    // of Tpetra::MultiVector.
-    template<class S, class LO, class GO, class DeviceType>
-    struct CreateMultiVectorFromView<MultiVector<S, LO, GO, Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> > > {
-      typedef S scalar_type;
-      typedef LO local_ordinal_type;
-      typedef GO global_ordinal_type;
-      typedef Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> node_type;
-      typedef ::Tpetra::Map<local_ordinal_type, global_ordinal_type, node_type> map_type;
-      typedef MultiVector<S, LO, GO, Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> > MultiVectorType;
-
-      static Teuchos::RCP<MultiVectorType>
-      create (const Teuchos::RCP<const map_type>& map,
-              const Teuchos::ArrayRCP<scalar_type>& view,
-              const size_t LDA,
-              const size_t numVectors)
-      {
-        (void) map;
-        (void) view;
-        (void) LDA;
-        (void) numVectors;
-
-        TEUCHOS_TEST_FOR_EXCEPTION(true, std::logic_error, "Not implemented");
-      }
-    };
   } // namespace Details
 
   template <class ST, class LO, class GO, class DT>

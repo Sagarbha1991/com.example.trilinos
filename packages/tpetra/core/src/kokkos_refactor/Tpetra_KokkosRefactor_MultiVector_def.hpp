@@ -53,70 +53,6 @@
 #include <Kokkos_MV_GEMM.hpp>
 #include <Kokkos_Random.hpp>
 
-namespace Kokkos {
-  // FIXME (mfh 10 Nov 2014) It seems to make sense that the draw()
-  // functions should take real numbers, but I'm not sure if it will
-  // compile.
-  //
-  // FIXME (mfh 07 Jan 2015) Move these functions elsewhere.  They
-  // should really go in KokkosAlgorithms, but currently
-  // Kokkos::complex lives in KokkosContainers.
-
-  template<class Generator>
-  struct rand<Generator, ::Kokkos::complex<float> > {
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<float> max () {
-      return ::Kokkos::complex<float> (1.0, 1.0);
-    }
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<float> draw (Generator& gen) {
-      const float re = gen.frand ();
-      const float im = gen.frand ();
-      return ::Kokkos::complex<float> (re, im);
-    }
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<float> draw (Generator& gen, const ::Kokkos::complex<float>& range) {
-      const float re = gen.frand (real (range));
-      const float im = gen.frand (imag (range));
-      return ::Kokkos::complex<float> (re, im);
-    }
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<float> draw (Generator& gen, const ::Kokkos::complex<float>& start, const ::Kokkos::complex<float>& end) {
-      const float re = gen.frand (real (start), real (end));
-      const float im = gen.frand (imag (start), imag (end));
-      return ::Kokkos::complex<float> (re, im);
-    }
-  };
-
-  template<class Generator>
-  struct rand<Generator, ::Kokkos::complex<double> > {
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<double> max () {
-      return ::Kokkos::complex<double> (1.0, 1.0);
-    }
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<double> draw (Generator& gen) {
-      const double re = gen.drand ();
-      const double im = gen.drand ();
-      return ::Kokkos::complex<double> (re, im);
-    }
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<double> draw (Generator& gen, const ::Kokkos::complex<double>& range) {
-      const double re = gen.drand (real (range));
-      const double im = gen.drand (imag (range));
-      return ::Kokkos::complex<double> (re, im);
-    }
-    KOKKOS_INLINE_FUNCTION
-    static ::Kokkos::complex<double> draw (Generator& gen, const ::Kokkos::complex<double>& start, const ::Kokkos::complex<double>& end) {
-      const double re = gen.drand (real (start), real (end));
-      const double im = gen.drand (imag (start), imag (end));
-      return ::Kokkos::complex<double> (re, im);
-    }
-  };
-
-} // namespace Kokkos
-
-
 namespace { // (anonymous)
 
   /// \brief Allocate and return a 2-D Kokkos::DualView for Tpetra::MultiVector.
@@ -1763,7 +1699,7 @@ namespace Tpetra {
     TEUCHOS_TEST_FOR_EXCEPTION(
       numNorms < numVecs, std::runtime_error, "Tpetra::MultiVector::normImpl: "
       "'norms' must have at least as many entries as the number of vectors in "
-      "*this.  norms.dimension_0() = " << numVecs << " < this->getNumVectors()"
+      "*this.  norms.dimension_0() = " << numNorms << " < this->getNumVectors()"
       " = " << numVecs << ".");
 
     const std::pair<size_t, size_t> colRng (0, numVecs);
@@ -2949,7 +2885,9 @@ namespace Tpetra {
       "colRng.size() = " << colRng.size () << " > this->getNumVectors() = "
       << numVecs << ".");
     TEUCHOS_TEST_FOR_EXCEPTION_CLASS_FUNC(
-      numVecs > 0 && colRng.size () > 0 && (colRng.lbound () < 0 || colRng.ubound () >= numVecs),
+      numVecs != 0 && colRng.size () != 0 &&
+      (colRng.lbound () < static_cast<Teuchos::Ordinal> (0) ||
+       static_cast<size_t> (colRng.ubound ()) >= numVecs),
       std::invalid_argument, "Nonempty input range [" << colRng.lbound () <<
       "," << colRng.ubound () << "] exceeds the valid range of column indices "
       "[0, " << numVecs << "].");
@@ -3778,18 +3716,6 @@ namespace Tpetra {
   }
 
   template <class Scalar, class LocalOrdinal, class GlobalOrdinal, class DeviceType>
-  TEUCHOS_DEPRECATED
-  KokkosClassic::MultiVector<
-    Scalar, Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> >
-  MultiVector<
-    Scalar, LocalOrdinal, GlobalOrdinal,
-    Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType>, false>::
-  getLocalMVNonConst ()
-  {
-    return this->getLocalMV ();
-  }
-
-  template <class Scalar, class LocalOrdinal, class GlobalOrdinal, class DeviceType>
   std::string
   MultiVector<
     Scalar, LocalOrdinal, GlobalOrdinal,
@@ -4233,46 +4159,6 @@ namespace Tpetra {
     typedef Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> node_type;
     typedef MultiVector<Scalar, LO, GO, node_type> MV;
     return Teuchos::rcp (new MV (map, numVectors));
-  }
-
-  /// \brief Nonmember MultiVector constructor with view semantics using user-allocated data.
-  /// \relatesalso MultiVector
-  /// \relatesalso Vector
-  ///
-  /// \warning This function is not supported for all Kokkos Node types.
-  ///
-  /// \param map [in] The Map describing the distribution of rows of
-  ///   the multivector.
-  /// \param view [in/out] A pointer to column-major dense matrix
-  ///   data.  This will be the multivector's data on the calling
-  ///   process.  The multivector will use the pointer directly,
-  ///   without copying.
-  /// \param LDA [in] The leading dimension (a.k.a. "stride") of the
-  ///   column-major input data.
-  /// \param numVectors [in] The number of columns in the input data.
-  ///   This will be the number of vectors in the returned
-  ///   multivector.
-  ///
-  /// \node To Kokkos and Tpetra developers: If you add a new Kokkos
-  ///   Node type that is a host Node type (where memory lives in user
-  ///   space, not in a different space as on a GPU), you will need to
-  ///   add a specialization of Tpetra::details::ViewAccepter for your
-  ///   new Node type.
-  template <class Scalar, class LocalOrdinal, class GlobalOrdinal, class DeviceType>
-  Teuchos::RCP<MultiVector<Scalar,LocalOrdinal,GlobalOrdinal,Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> > >
-  createMultiVectorFromView (const Teuchos::RCP<const Map<LocalOrdinal,GlobalOrdinal,Kokkos::Compat::KokkosDeviceWrapperNode<DeviceType> > >& map,
-                             const Teuchos::ArrayRCP<Scalar>& view,
-                             const size_t LDA,
-                             const size_t numVectors)
-  {
-    (void) map;
-    (void) view;
-    (void) LDA;
-    (void) numVectors;
-
-    TEUCHOS_TEST_FOR_EXCEPTION(
-      true, std::logic_error, "Tpetra::createMultiVectorFromView: "
-      "Not implemented for Node = KokkosDeviceWrapperNode.");
   }
 
   template <class ST, class LO, class GO, class DeviceType>

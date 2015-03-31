@@ -124,11 +124,26 @@ namespace Tpetra {
     //! The CrsGraph specialization suitable for this CrsMatrix specialization.
     typedef CrsGraph<LocalOrdinal, GlobalOrdinal, node_type> crs_graph_type;
 
-    typedef typename crs_graph_type::t_RowPtrs t_RowPtrs;
-    typedef typename crs_graph_type::t_LocalOrdinal_1D t_LocalOrdinal_1D;
-    typedef Kokkos::View<impl_scalar_type*, execution_space> t_ValuesType;
-    typedef Kokkos::CrsMatrix<impl_scalar_type, LocalOrdinal, execution_space,
-                              void, size_t> k_local_matrix_type;
+    //! The part of the sparse matrix's graph on each MPI process.
+    typedef typename crs_graph_type::local_graph_type local_graph_type;
+
+    /// \brief The specialization of Kokkos::CrsMatrix that represents
+    ///   the part of the sparse matrix on each MPI process.
+    typedef Kokkos::CrsMatrix<impl_scalar_type, LocalOrdinal, execution_space,void,
+                              typename local_graph_type::size_type> local_matrix_type;
+
+    //! DEPRECATED; use <tt>local_matrix_type::row_map_type</tt> instead.
+    typedef typename local_matrix_type::row_map_type t_RowPtrs TPETRA_DEPRECATED;
+    //! DEPRECATED; use <tt>local_matrix_type::row_map_type::non_const_type</tt> instead.
+    typedef typename local_matrix_type::row_map_type::non_const_type t_RowPtrsNC TPETRA_DEPRECATED;
+    //! DEPRECATED; use <tt>local_graph_type::entries_type::non_const_type</tt> instead.
+    typedef typename local_graph_type::entries_type::non_const_type t_LocalOrdinal_1D TPETRA_DEPRECATED;
+    //! DEPRECATED; use <tt>local_matrix_type::values_type</tt> instead.
+    typedef typename local_matrix_type::values_type t_ValuesType TPETRA_DEPRECATED;
+
+    //! DEPRECATED; use local_matrix_type instead.
+    typedef local_matrix_type k_local_matrix_type TPETRA_DEPRECATED;
+
     //@}
     //! @name Constructors and destructor
     //@{
@@ -285,9 +300,9 @@ namespace Tpetra {
     ///   default values.
     CrsMatrix (const Teuchos::RCP<const map_type>& rowMap,
                const Teuchos::RCP<const map_type>& colMap,
-               const t_RowPtrs & rowPointers,
-               const t_LocalOrdinal_1D & columnIndices,
-               const t_ValuesType & values,
+               const typename local_matrix_type::row_map_type& rowPointers,
+               const typename local_graph_type::entries_type::non_const_type& columnIndices,
+               const typename local_matrix_type::values_type& values,
                const Teuchos::RCP<Teuchos::ParameterList>& params = null);
 
     /// \brief Constructor specifying column Map and arrays containing
@@ -342,7 +357,7 @@ namespace Tpetra {
     ///   default values.
     CrsMatrix (const Teuchos::RCP<const map_type>& rowMap,
                const Teuchos::RCP<const map_type>& colMap,
-               const k_local_matrix_type& lclMatrix,
+               const local_matrix_type& lclMatrix,
                const Teuchos::RCP<Teuchos::ParameterList>& params = null);
 
     // This friend declaration makes the clone() method work.
@@ -848,9 +863,9 @@ namespace Tpetra {
        \warning This method is intended for expert developer use only, and should never be called by user code.
     */
     void
-    setAllValues (const t_RowPtrs& rowPointers,
-                  const t_LocalOrdinal_1D& columnIndices,
-                  const t_ValuesType& values);
+    setAllValues (const typename local_matrix_type::row_map_type& rowPointers,
+                  const typename local_graph_type::entries_type::non_const_type& columnIndices,
+                  const typename local_matrix_type::values_type& values);
 
     //! Sets the 1D pointer arrays of the graph.
     /**
@@ -978,7 +993,7 @@ namespace Tpetra {
     /// \brief Perform a fillComplete on a matrix that already has data.
     ///
     /// The matrix must already have filled local 1-D storage
-    /// (k_lclInds1D_ and k_rowPtrs_ for the graph, and k_values1D_ in
+    /// (k_clInds1D_ and k_rowPtrs_ for the graph, and k_values1D_ in
     /// the matrix).  If the matrix has been constructed in any other
     /// way, this method will throw an exception.  This routine is
     /// needed to support other Trilinos packages and should not be
@@ -1146,9 +1161,8 @@ namespace Tpetra {
     //! This matrix's graph, as a CrsGraph.
     Teuchos::RCP<const crs_graph_type> getCrsGraph () const;
 
-    //! Return the underlying local kokkos mtx
-    k_local_matrix_type getLocalMatrix () const {return k_lclMatrix_; }
-
+    //! The local sparse matrix.
+    local_matrix_type getLocalMatrix () const {return lclMatrix_; }
 
     /// \brief Number of global elements in the row map of this matrix.
     ///
@@ -1350,7 +1364,7 @@ namespace Tpetra {
     ///
     /// The Frobenius norm of the matrix is defined as
     /// \f\[
-    ///   \|A\|_F = \sqrt{\sum_{i,j} \|\a_{ij}\|^2}.
+    ///   \|A\|_F = \sqrt{\sum_{i,j} \|A(i,j)\|^2}.
     /// \f\].
     ///
     /// If the matrix is fill complete, then the computed value is
@@ -2252,7 +2266,9 @@ namespace Tpetra {
 
   public:
     //! Get the Kokkos local values
-    t_ValuesType getLocalValuesView () const { return k_values1D_; }
+    typename local_matrix_type::values_type getLocalValuesView () const {
+      return k_values1D_;
+    }
 
   private:
     // Friend declaration for nonmember function.
@@ -2749,7 +2765,7 @@ namespace Tpetra {
     //@}
 
     //! The local sparse matrix.
-    k_local_matrix_type k_lclMatrix_;
+    local_matrix_type lclMatrix_;
 
     /// \name Sparse matrix values.
     ///
@@ -2764,7 +2780,7 @@ namespace Tpetra {
     /// allocation always matches that of graph_, as the graph does
     /// the allocation for the matrix.
     //@{
-    t_ValuesType k_values1D_;
+    typename local_matrix_type::values_type k_values1D_;
     Teuchos::ArrayRCP<Teuchos::Array<impl_scalar_type> > values2D_;
     //@}
 

@@ -45,10 +45,10 @@
 /// \file Tpetra_Experimental_BlockCrsMatrix_decl.hpp
 /// \brief Declaration of Tpetra::Experimental::BlockCrsMatrix
 
+#include <Tpetra_ConfigDefs.hpp>
 #include <Tpetra_CrsGraph.hpp>
 #include <Tpetra_RowMatrix.hpp>
 #include <Tpetra_Experimental_BlockMultiVector.hpp>
-#include "Tpetra_ConfigDefs.hpp"
 
 namespace Tpetra {
 namespace Experimental {
@@ -654,8 +654,18 @@ private:
   map_type rangePointMap_;
   //! The number of degrees of freedom per mesh point.
   LO blockSize_;
+
+#if defined(HAVE_TPETRACLASSIC_SERIAL) || defined(HAVE_TPETRACLASSIC_TBB) || defined(HAVE_TPETRACLASSIC_THREADPOOL) || defined(HAVE_TPETRACLASSIC_OPENMP)
   //! Raw pointer to the graph's array of row offsets.
   const size_t* ptr_;
+#else
+  /// \brief The graph's array of row offsets.
+  ///
+  /// FIXME (mfh 23 Mar 2015) Once we write a Kokkos kernel for the
+  /// mat-vec, we won't need a host version of this.
+  typename crs_graph_type::local_graph_type::row_map_type::HostMirror ptr_;
+#endif
+
   //! Raw pointer to the graph's array of column indices.
   const LO* ind_;
   /// \brief Array of values in the matrix.
@@ -730,6 +740,12 @@ private:
   /// error stream, because all views have the same (nonnull at
   /// construction) outer pointer.
   Teuchos::RCP<Teuchos::RCP<std::ostringstream> > errs_;
+
+  //! Mark that a local error occurred, and get a stream for reporting it.
+  std::ostream& markLocalErrorAndGetStream ();
+
+  // //! Clear the local error state and stream.
+  // void clearLocalErrorStateAndStream ();
 
   /// \brief Global sparse matrix-vector multiply for the transpose or
   ///   conjugate transpose cases.

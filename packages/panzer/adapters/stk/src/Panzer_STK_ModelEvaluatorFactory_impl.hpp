@@ -223,6 +223,8 @@ namespace panzer_stk {
     TEUCHOS_ASSERT(nonnull(global_data->os));
     TEUCHOS_ASSERT(nonnull(global_data->pl));
 
+    // begin at the beginning...
+    m_global_data = global_data;
 
     ////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////
@@ -749,7 +751,6 @@ namespace panzer_stk {
                            p.sublist("User Data"),workset_size);
 
     m_physics_me = thyra_me;
-    m_global_data = global_data;
   }
 
   template<typename ScalarT>
@@ -791,7 +792,7 @@ namespace panzer_stk {
       RCP<panzer::ThyraObjContainer<double> > tloc = Teuchos::rcp_dynamic_cast<panzer::ThyraObjContainer<double> >(loc);
       tloc->set_x_th(x_vec);
 
-      panzer::evaluateInitialCondition(wkstContainer, phx_ic_field_managers, loc, 0.0);
+      panzer::evaluateInitialCondition(wkstContainer, phx_ic_field_managers, loc, lof, 0.0);
     }
     else {
       const std::string & vectorFile = initial_cond_pl.sublist("Vector File").get<std::string>("File Name");
@@ -1195,9 +1196,12 @@ namespace panzer_stk {
                             const panzer::BCStrategyFactory & bc_factory,
                             const panzer::ClosureModelFactory_TemplateManager<panzer::Traits> & user_cm_factory,
                             bool is_transient,bool is_explicit,
-                            const Teuchos::Ptr<const Teuchos::ParameterList> & bc_list) const
+                            const Teuchos::Ptr<const Teuchos::ParameterList> & bc_list,
+                            const Teuchos::RCP<Thyra::ModelEvaluator<ScalarT> > & physics_me_in) const
   {
     typedef panzer::ModelEvaluator<ScalarT> PanzerME;
+
+    Teuchos::RCP<Thyra::ModelEvaluator<ScalarT> > physics_me = physics_me_in==Teuchos::null ? m_physics_me : physics_me_in;
 
     const Teuchos::ParameterList& p = *this->getParameterList();
 
@@ -1247,7 +1251,10 @@ namespace panzer_stk {
         panzer::buildBCs(bcs, *bc_list, m_global_data);
       }
       
-      fmb = buildFieldManagerBuilder(Teuchos::rcp_const_cast<panzer::WorksetContainer>(m_response_library->getWorksetContainer()),
+      fmb = buildFieldManagerBuilder(// Teuchos::rcp_const_cast<panzer::WorksetContainer>(
+                                     // m_response_library!=Teuchos::null ? m_response_library->getWorksetContainer()
+                                     //                                   : m_wkstContainer),
+                                     m_wkstContainer,
                                      physicsBlocks,
                                      bcs,
                                      *eqset_factory,
@@ -1261,26 +1268,29 @@ namespace panzer_stk {
     }
 
     Teuchos::RCP<panzer::ResponseLibrary<panzer::Traits> > response_library 
-        = Teuchos::rcp(new panzer::ResponseLibrary<panzer::Traits>(m_response_library->getWorksetContainer(),
-                                                                   m_response_library->getGlobalIndexer(),
-                                                                   m_response_library->getLinearObjFactory()));
+        = Teuchos::rcp(new panzer::ResponseLibrary<panzer::Traits>(m_wkstContainer,
+                                                                   m_global_indexer,
+                                                                   m_lin_obj_factory));
+        // = Teuchos::rcp(new panzer::ResponseLibrary<panzer::Traits>(m_response_library->getWorksetContainer(),
+        //                                                            m_response_library->getGlobalIndexer(),
+        //                                                            m_response_library->getLinearObjFactory()));
 
     // using the FMB, build the model evaluator
     {
       // get nominal input values, make sure they match with internal me
-      Thyra::ModelEvaluatorBase::InArgs<ScalarT> nomVals = m_physics_me->getNominalValues();
+      Thyra::ModelEvaluatorBase::InArgs<ScalarT> nomVals = physics_me->getNominalValues();
   
       // determine if this is a Epetra or Thyra ME
-      Teuchos::RCP<Thyra::EpetraModelEvaluator> ep_thyra_me = Teuchos::rcp_dynamic_cast<Thyra::EpetraModelEvaluator>(m_physics_me);
-      Teuchos::RCP<PanzerME> panzer_me = Teuchos::rcp_dynamic_cast<PanzerME>(m_physics_me);
+      Teuchos::RCP<Thyra::EpetraModelEvaluator> ep_thyra_me = Teuchos::rcp_dynamic_cast<Thyra::EpetraModelEvaluator>(physics_me);
+      Teuchos::RCP<PanzerME> panzer_me = Teuchos::rcp_dynamic_cast<PanzerME>(physics_me);
       bool useThyra = true;
       if(ep_thyra_me!=Teuchos::null)
         useThyra = false;
   
       // get parameter names
-      std::vector<Teuchos::RCP<Teuchos::Array<std::string> > > p_names(m_physics_me->Np());
+      std::vector<Teuchos::RCP<Teuchos::Array<std::string> > > p_names(physics_me->Np());
       for(std::size_t i=0;i<p_names.size();i++) 
-        p_names[i] = Teuchos::rcp(new Teuchos::Array<std::string>(*m_physics_me->get_p_names(i)));
+        p_names[i] = Teuchos::rcp(new Teuchos::Array<std::string>(*physics_me->get_p_names(i)));
   
       Teuchos::RCP<Thyra::ModelEvaluatorDefaultBase<double> > thyra_me
           = buildPhysicsModelEvaluator(useThyra,
@@ -1566,6 +1576,26 @@ namespace panzer_stk {
     }
 
     Stratimikos::DefaultLinearSolverBuilder linearSolverBuilder;
+
+    // Note if you want to use new solvers within Teko they have to be added to the solver builer
+    // before teko is added. This is because Teko steals its defaults from the solver its being injected
+    // into!
+
+    #ifdef HAVE_MUELU
+    {
+      Thyra::addMueLuToStratimikosBuilder(linearSolverBuilder); // Register MueLu as a Stratimikos preconditioner strategy for Epetra
+      Stratimikos::enableMueLuTpetra<int,panzer::Ordinal64,panzer::TpetraNodeType>(linearSolverBuilder,"MueLu-Tpetra");
+    }
+    #endif // MUELU
+    #ifdef HAVE_IFPACK2
+    {
+      typedef Thyra::PreconditionerFactoryBase<double> Base;
+      typedef Thyra::Ifpack2PreconditionerFactory<Tpetra::CrsMatrix<double, int, panzer::Ordinal64,panzer::TpetraNodeType> > Impl;
+
+      linearSolverBuilder.setPreconditioningStrategyFactory(Teuchos::abstractFactoryStd<Base, Impl>(), "Ifpack2");
+    }
+    #endif // MUELU
+
     #ifdef HAVE_TEKO
     if(!blockedAssembly) {
 
@@ -1745,21 +1775,6 @@ namespace panzer_stk {
        }
     }
     #endif
-
-    #ifdef HAVE_MUELU
-    {
-      Thyra::addMueLuToStratimikosBuilder(linearSolverBuilder); // Register MueLu as a Stratimikos preconditioner strategy for Epetra
-      Stratimikos::enableMueLuTpetra<int,panzer::Ordinal64,panzer::TpetraNodeType>(linearSolverBuilder,"MueLu-Tpetra");
-    }
-    #endif // MUELU
-    #ifdef HAVE_IFPACK2
-    {
-      typedef Thyra::PreconditionerFactoryBase<double> Base;
-      typedef Thyra::Ifpack2PreconditionerFactory<Tpetra::CrsMatrix<double, int, panzer::Ordinal64,panzer::TpetraNodeType> > Impl;
-
-      linearSolverBuilder.setPreconditioningStrategyFactory(Teuchos::abstractFactoryStd<Base, Impl>(), "Ifpack2");
-    }
-    #endif // MUELU
 
     linearSolverBuilder.setParameterList(strat_params);
     Teuchos::RCP<Thyra::LinearOpWithSolveFactoryBase<double> > lowsFactory = createLinearSolveStrategy(linearSolverBuilder);

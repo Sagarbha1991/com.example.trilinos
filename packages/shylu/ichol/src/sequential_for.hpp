@@ -17,6 +17,7 @@ namespace Example {
     TeamThreadMember() { }
     int team_rank() const { return 0; } 
     int team_size() const { return 1; } 
+    void team_barrier() const { }
   };
 
   // Team policy
@@ -24,6 +25,7 @@ namespace Example {
   class TeamPolicy {
   public:
     typedef class TeamThreadMember member_type;
+    static member_type member_null() { return member_type(); }
   };
 
   // Team thread loop region for sequential loop
@@ -40,8 +42,8 @@ namespace Example {
 
   public:
     TeamThreadLoopRegion(const member_type  &thread,
-                     const ordinal_type &begin, 
-                     const ordinal_type &end) 
+                         const ordinal_type &begin, 
+                         const ordinal_type &end) 
       : _thread(thread),
         _begin(begin),
         _end(end) { }
