@@ -76,15 +76,20 @@ class MultiVector {
 
              @return A reference-counted pointer to the cloned MultiVector
         */
-        virtual PMV clone() = 0;
+        virtual PMV clone() const = 0;
 
+        /** \brief Make a new MultiVector of specified "width" 
+
+             @return A reference-counted pointer to the cloned MultiVector
+        */
+        virtual PMV clone( const int numvecs ) const = 0;
 
         /** \brief Make a deep copy of this MultiVector
 
              @return A reference-counted pointer to a new MultiVector containing
                      deep copied values             
         */
-        virtual PMV deepCopy() = 0;
+        virtual PMV deepCopy() const  = 0;
 
 
         /** \brief Make a deep copy of this MultiVector
@@ -92,7 +97,7 @@ class MultiVector {
              @return A reference-counted pointer to a new MultiVector containing
                      deep copied values             
         */
-        virtual PMV deepCopy(const std::vector<int> &index) = 0; 
+        virtual PMV deepCopy(const std::vector<int> &index) const = 0; 
 
 
         /** \brief Make a shallow copy of this MultiVector
@@ -108,7 +113,7 @@ class MultiVector {
              @return A reference-counted pointer to a new MultiVector where the 
                      elements point to the data in *this
         */
-        virtual const PMV shallowCopyConst(const std::vector<int> &index) = 0;
+        virtual const PMV shallowCopyConst(const std::vector<int> &index) const = 0;
 
 
         /** \brief Get the number of elements of a vector in the MultiVector
@@ -135,6 +140,13 @@ class MultiVector {
                           const MV& A,
                           const Teuchos::SerialDenseMatrix<int,Real> &B,
                           const Real beta) = 0;
+
+        /** \brief Perform the axpy operation columnwise on the MultiVector
+            \f$ y_i\leftarrow y_i+\alpha x_i\f$ where \f$y\f$ is this MultiVector
+            @param[in] alpha is the scaling factor
+            @param[in] mv is the 
+        */
+        virtual void axpy(const Real alpha, const MV& x) = 0;
 
 
         /** \brief Scale the MultiVector by a single scalar alpha 

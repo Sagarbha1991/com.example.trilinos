@@ -118,6 +118,7 @@ unsigned BulkData::find_ordinal(Entity entity, EntityRank rank, ConnectivityOrdi
   const MeshIndex &mesh_idx = mesh_index(entity);
   unsigned num_rels = mesh_idx.bucket->num_connectivity(mesh_idx.bucket_ordinal, rank);
   ConnectivityOrdinal const *ords = mesh_idx.bucket->begin_ordinals(mesh_idx.bucket_ordinal, rank);
+  ThrowAssert(ords);
 
   unsigned i = 0;
   for (; i < num_rels; ++i)
@@ -408,11 +409,6 @@ bool BulkData::has_permutation(Entity entity, EntityRank rank) const
 }
 
 inline
-int BulkData::entity_comm_map_owner(const EntityKey & key) const
-{
-    return internal_entity_comm_map_owner(key);
-}
-inline
 int BulkData::internal_entity_comm_map_owner(const EntityKey & key) const
 {
   const int owner_rank = m_entity_comm_map.owner_rank(key);
@@ -464,7 +460,10 @@ void BulkData::internal_check_unpopulated_relations(Entity entity, EntityRank ra
     const MeshIndex &mesh_idx = mesh_index(entity);
     const Bucket &b = *mesh_idx.bucket;
     Bucket::size_type bucket_ord = mesh_idx.bucket_ordinal;
-    ThrowAssert(count_valid_connectivity(entity, rank) == b.num_connectivity(bucket_ord, rank));
+    ThrowAssertMsg(count_valid_connectivity(entity, rank) == b.num_connectivity(bucket_ord, rank),
+                   count_valid_connectivity(entity,rank) << " = count_valid_connectivity("<<entity_key(entity)<<","<<rank<<") != b.num_connectivity("<<bucket_ord<<","<<rank<<") = " << b.num_connectivity(bucket_ord,rank);
+                  );
+
   }
 #endif
 }
@@ -668,7 +667,7 @@ inline bool BulkData::element_side_polarity( const Entity elem ,
 
 inline VolatileFastSharedCommMapOneRank const& BulkData::volatile_fast_shared_comm_map(EntityRank rank) const
 {
-  ThrowAssert(synchronized_state() == SYNCHRONIZED);
+  ThrowAssert(this->in_synchronized_state());
   ThrowAssertMsg(rank < stk::topology::ELEMENT_RANK, "Cannot shared entities of rank: " << rank);
   return m_volatile_fast_shared_comm_map[rank];
 }
@@ -681,12 +680,12 @@ inline Part& BulkData::ghosting_part(const Ghosting& ghosting) const
 
 inline bool BulkData::in_index_range(Entity entity) const
 {
-  return entity.local_offset() < m_entity_states.size();
+  return entity.local_offset() < m_entity_keys.size();
 }
 
 inline bool BulkData::is_valid(Entity entity) const
 {
-  return (entity.local_offset() < m_entity_states.size()) && (m_entity_states[entity.local_offset()] != Deleted);
+  return (this->in_index_range(entity) && !m_meshModification.is_entity_deleted(entity.local_offset()) );
 }
 
 inline const MeshIndex& BulkData::mesh_index(Entity entity) const
@@ -731,8 +730,7 @@ inline EntityKey BulkData::entity_key(Entity entity) const
 inline EntityState BulkData::state(Entity entity) const
 {
   entity_getter_debug_check(entity);
-
-  return static_cast<EntityState>(m_entity_states[entity.local_offset()]);
+  return m_meshModification.get_entity_state(entity.local_offset());
 }
 
 inline void BulkData::internal_mark_entity(Entity entity, entitySharing sharedType)
@@ -819,6 +817,8 @@ inline void BulkData::set_global_id(stk::mesh::Entity entity, int id)
 {
   entity_setter_debug_check(entity);
 
+  m_modSummary.track_set_global_id(entity, id);
+
   m_fmwk_global_ids[entity.local_offset()] = id;
 }
 
@@ -877,7 +877,7 @@ inline void BulkData::set_state(Entity entity, EntityState entity_state)
 {
   entity_setter_debug_check(entity);
 
-  m_entity_states[entity.local_offset()] = static_cast<uint16_t>(entity_state);
+  m_meshModification.set_entity_state(entity.local_offset(), entity_state);
   m_mark_entity[entity.local_offset()] = NOT_MARKED;
 }
 

@@ -595,7 +595,10 @@ inline void fillMeshfor2Elem2ProcMoveAndTest(stk::mesh::unit_test::BulkDataTeste
     //   2/0---3/0---6/0      2/0---3/0---6/1
 
     stk::mesh::EntityId element_ids[2] = {1, 2};
-    stk::mesh::EntityId elem_node_ids[][4] = { {1, 2, 3, 4}, {4, 3, 6, 5}};
+    stk::mesh::EntityIdVector elem_node_ids[] {
+        {1, 2, 3, 4},
+        {4, 3, 6, 5}
+    };
 
     stk::mesh::Part * elem_part = &meta.declare_part_with_topology("elem_part", stk::topology::QUAD_4_2D);
     stk::mesh::Part * topo_part = &meta.get_cell_topology_root_part(stk::mesh::get_cell_topology(stk::topology::QUAD_4_2D));
@@ -627,7 +630,7 @@ inline void fillMeshfor2Elem2ProcMoveAndTest(stk::mesh::unit_test::BulkDataTeste
         EXPECT_TRUE(check_state(bulk, EntityKey(ELEM_RANK, 1), STATE_NOT_GHOSTED_TO));
         EXPECT_TRUE(check_parts(bulk, EntityKey(ELEM_RANK, 1), universal_part, owned_part, topo_part, elem_part));
         EXPECT_TRUE(check_relns(bulk, EntityKey(ELEM_RANK, 1), NODE_RANK, 1, 2, 3, 4));
- 
+
         EXPECT_TRUE(check_state(bulk, EntityKey(ELEM_RANK, 2), STATE_VALID));
         EXPECT_TRUE(check_state(bulk, EntityKey(ELEM_RANK, 2), STATE_OWNED, 0));
         EXPECT_TRUE(check_state(bulk, EntityKey(ELEM_RANK, 2), STATE_NOT_SHARED));
@@ -643,7 +646,7 @@ inline void fillMeshfor2Elem2ProcMoveAndTest(stk::mesh::unit_test::BulkDataTeste
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 1), STATE_NOT_GHOSTED_TO));
         EXPECT_TRUE(check_parts(bulk, EntityKey(NODE_RANK, 1), universal_part, owned_part, topo_part, elem_part));
         EXPECT_TRUE(check_relns(bulk, EntityKey(NODE_RANK, 1), ELEM_RANK, 1));
- 
+
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 2), STATE_VALID));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 2), STATE_OWNED, 0));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 2), STATE_NOT_SHARED));
@@ -659,7 +662,7 @@ inline void fillMeshfor2Elem2ProcMoveAndTest(stk::mesh::unit_test::BulkDataTeste
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 3), STATE_NOT_GHOSTED_TO));
         EXPECT_TRUE(check_parts(bulk, EntityKey(NODE_RANK, 3), universal_part, owned_part, topo_part, elem_part));
         EXPECT_TRUE(check_relns(bulk, EntityKey(NODE_RANK, 3), ELEM_RANK, 1, 2));
- 
+
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 4), STATE_VALID));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 4), STATE_OWNED, 0));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 4), STATE_NOT_SHARED));
@@ -667,7 +670,7 @@ inline void fillMeshfor2Elem2ProcMoveAndTest(stk::mesh::unit_test::BulkDataTeste
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 4), STATE_NOT_GHOSTED_TO));
         EXPECT_TRUE(check_parts(bulk, EntityKey(NODE_RANK, 4), universal_part, owned_part, topo_part, elem_part));
         EXPECT_TRUE(check_relns(bulk, EntityKey(NODE_RANK, 4), ELEM_RANK, 1, 2));
- 
+
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 5), STATE_VALID));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 5), STATE_OWNED, 0));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 5), STATE_NOT_SHARED));
@@ -675,7 +678,7 @@ inline void fillMeshfor2Elem2ProcMoveAndTest(stk::mesh::unit_test::BulkDataTeste
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 5), STATE_NOT_GHOSTED_TO));
         EXPECT_TRUE(check_parts(bulk, EntityKey(NODE_RANK, 5), universal_part, owned_part, topo_part, elem_part));
         EXPECT_TRUE(check_relns(bulk, EntityKey(NODE_RANK, 5), ELEM_RANK, 2));
- 
+
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 6), STATE_VALID));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 6), STATE_OWNED, 0));
         EXPECT_TRUE(check_state(bulk, EntityKey(NODE_RANK, 6), STATE_NOT_SHARED));
@@ -1031,7 +1034,10 @@ inline void fillMeshfor2Elem2ProcFlipAndTest(stk::mesh::unit_test::BulkDataTeste
     //   2/0---3/0---6/1        2/1---3/0---6/0
 
     stk::mesh::EntityId element_ids[2] = {1, 2};
-    stk::mesh::EntityId elem_node_ids[][4] = { {1, 2, 3, 4}, {4, 3, 6, 5}};
+    stk::mesh::EntityIdVector elem_node_ids[] {
+        {1, 2, 3, 4},
+        {4, 3, 6, 5}
+    };
 
     stk::mesh::Part * elem_part = &meta.declare_part_with_topology("elem_part", stk::topology::QUAD_4_2D);
     stk::mesh::Part * topo_part = &meta.get_cell_topology_root_part(stk::mesh::get_cell_topology(stk::topology::QUAD_4_2D));
@@ -6511,12 +6517,11 @@ inline void fillMeshfor4Elem4ProcRotateAndTest(stk::mesh::unit_test::BulkDataTes
     stk::mesh::EntityId proc_elemIDs[] = {1, 2, 3, 4};
 
 // list of node-ids for each element
-    const int nodesPerElem = 4;
-    stk::mesh::EntityId elem_nodeIDs[][nodesPerElem] = {
-            {1, 2, 5, 4},
-            {2, 3, 6, 5},
-            {5, 6, 9, 8},
-            {4, 5, 8, 7}
+    stk::mesh::EntityIdVector elem_nodeIDs[] {
+        {1, 2, 5, 4},
+        {2, 3, 6, 5},
+        {5, 6, 9, 8},
+        {4, 5, 8, 7}
     };
 
 // list of triplets: (owner-proc, shared-nodeID, sharing-proc)
@@ -7820,12 +7825,10 @@ inline void fillMeshfor3Elem4Proc1Edge3DAndTest(stk::mesh::unit_test::BulkDataTe
     {   1, 2, 3};
 
 // list of node-ids for each element
-    const int nodesPerElem = 8;
-    stk::mesh::EntityId elem_nodeIDs[][nodesPerElem] =
-    {
-        {   1, 2, 5, 4, 9, 10, 13, 12},
-        {   2, 3, 6, 5, 10, 11, 14, 13},
-        {   5, 6, 8, 7, 13, 14, 16, 15}
+    stk::mesh::EntityIdVector elem_nodeIDs[] {
+        {1, 2, 5, 4, 9, 10, 13, 12},
+        {2, 3, 6, 5, 10, 11, 14, 13},
+        {5, 6, 8, 7, 13, 14, 16, 15}
     };
 
 // list of triplets: (owner-proc, shared-nodeID, sharing-proc)
@@ -7864,9 +7867,9 @@ inline void fillMeshfor3Elem4Proc1Edge3DAndTest(stk::mesh::unit_test::BulkDataTe
         std::vector<stk::mesh::Entity> nodes;
         nodes.push_back(mesh.get_entity(NODE_RANK, 5));
         nodes.push_back(mesh.get_entity(NODE_RANK, 13 ));
-        stk::mesh::impl::connectEntityToEdge(mesh, elem, edge, &nodes[0], nodes.size());
         mesh.declare_relation(edge, nodes[0], 0);
         mesh.declare_relation(edge, nodes[1], 1);
+        stk::mesh::impl::connectUpwardEntityToEntity(mesh, elem, edge, &nodes[0]);
     }
 
     for(int proc = 0; proc < numSharedNodeTriples; ++proc)
@@ -9107,7 +9110,10 @@ inline void fillMeshfor2Elem2ProcFlipAndTest_no_ghost(stk::mesh::unit_test::Bulk
     //   2/0---3/0---6/1        2/1---3/0---6/0
 
     stk::mesh::EntityId element_ids[2] = {1, 2};
-    stk::mesh::EntityId elem_node_ids[][4] = { {1, 2, 3, 4}, {4, 3, 6, 5}};
+    stk::mesh::EntityIdVector elem_node_ids[] {
+        {1, 2, 3, 4},
+        {4, 3, 6, 5}
+    };
 
     stk::mesh::Part * elem_part = &meta.declare_part_with_topology("elem_part", stk::topology::QUAD_4_2D);
     stk::mesh::Part * topo_part = &meta.get_cell_topology_root_part(stk::mesh::get_cell_topology(stk::topology::QUAD_4_2D));
@@ -9131,7 +9137,7 @@ inline void fillMeshfor2Elem2ProcFlipAndTest_no_ghost(stk::mesh::unit_test::Bulk
         mesh.add_node_sharing(mesh.get_entity(EntityKey(NODE_RANK, 4)), 0);
     }
 
-    mesh.my_internal_modification_end(false);  //call IME through the tester to pass regenerate_aura = false
+    mesh.modification_end();  //call IME through the tester to pass regenerate_aura = false
 
     Part * universal_part = &meta.universal_part();
     Part * owned_part     = &meta.locally_owned_part();

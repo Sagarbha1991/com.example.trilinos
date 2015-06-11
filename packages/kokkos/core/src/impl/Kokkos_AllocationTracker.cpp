@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -57,6 +57,9 @@
 #include <cstring>
 #include <iostream>
 #include <iomanip>
+
+/* Enable clean up of memory leaks */
+#define CLEAN_UP_MEMORY_LEAKS 0
 
 namespace Kokkos { namespace Impl {
 
@@ -359,10 +362,16 @@ struct AllocationRecordPool
             alloc_rec->print( oss );
             string_vec.push_back( oss.str() );
 
+#if CLEAN_UP_MEMORY_LEAKS
+/* Cleaning up memory leaks prevents memory error detection tools
+ * from reporting the original source of allocation, which can
+ * impede debugging with such tools.
+ */
             try {
               destroy(alloc_rec);
             }
             catch(...) {}
+#endif
           }
         }
 

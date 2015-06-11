@@ -54,24 +54,22 @@
 #include <Tpetra_Map.hpp>
 #include <Tpetra_CrsMatrix.hpp>
 
-#include <mrk_data_types.hpp>
-
 namespace morkon_exp {
 
-template <typename DeviceType, unsigned int DIM = 3 >
+template <typename DeviceType, unsigned int DIM = 3, MorkonFaceType = MRK_QUAD4 >
 class Interface;
 
-template <typename DeviceType, unsigned int DIM = 3 >
+template <typename DeviceType, unsigned int DIM = 3, MorkonFaceType = MRK_QUAD4 >
 class Morkon_Manager;
 
 template <unsigned int DIM = 3 >
 struct Interface_HostSideAdapter;
 
 
-template <typename DeviceType, unsigned int DIM >
+template <typename DeviceType, unsigned int DIM, MorkonFaceType FACE_TYPE >
 class Interface : public InterfaceBase
 {
-  friend  class Morkon_Manager<DeviceType, DIM> ;
+  friend  class Morkon_Manager<DeviceType, DIM, FACE_TYPE> ;
 
   typedef typename DeviceType::execution_space  execution_space;
   typedef Kokkos::View<local_idx_t *, execution_space>     faces_ids_t;
@@ -84,7 +82,7 @@ public:
 
   // For pulling data in from the host space.
   bool hsa_add_node(SideEnum which_side, global_idx_t gbl_node_id, const double coords[]);
-  bool hsa_add_segment(SideEnum which_side, global_idx_t gbl_seg_id, int num_nodes, const global_idx_t glb_nids[]);
+  bool hsa_add_face(SideEnum which_side, global_idx_t gbl_face_id, int num_nodes, const global_idx_t gbl_node_id[]);
 
   // No more changes via public API after this.
   bool commited() const { return m_committed; }
@@ -94,9 +92,9 @@ public:
 
 private:
 
-  Interface(Morkon_Manager<DeviceType, DIM> *manager);
+  Interface(Morkon_Manager<DeviceType, DIM, FACE_TYPE> *manager);
 
-  Morkon_Manager<DeviceType, DIM>   *m_manager;
+  Morkon_Manager<DeviceType, DIM, FACE_TYPE>   *m_manager;
   bool                             m_committed;
   bool                           m_distributed;
   std::vector<faces_ids_t>             m_sides;
@@ -106,11 +104,11 @@ private:
 };
 
 
-template <typename DeviceType, unsigned int DIM >
+template <typename DeviceType, unsigned int DIM, MorkonFaceType FACE_TYPE >
 class Morkon_Manager
 {
   typedef typename DeviceType::execution_space  execution_space;
-  typedef Interface<DeviceType, DIM>                interface_t;
+  typedef Interface<DeviceType, DIM, FACE_TYPE>   interface_t;
   typedef Teuchos::RCP<interface_t>               interface_ptr;
   typedef std::map<int, interface_ptr>         interfaces_map_t;
 
@@ -124,14 +122,14 @@ class Morkon_Manager
 
   typedef Mrk_MortarPallets<DeviceType, DIM>   mortar_pallets_t;
 
-  typedef Kokkos::CrsMatrix<local_idx_t, local_idx_t, DeviceType>         segment_interface_mat_t;
+  typedef Kokkos::CrsMatrix<local_idx_t, local_idx_t, DeviceType>         face_interface_mat_t;
   typedef Kokkos::View<local_idx_t *[3], execution_space>  contact_search_results_t;
   typedef Kokkos::CrsMatrix<bool, local_idx_t, DeviceType>                    on_boundary_table_t;
   typedef Kokkos::CrsMatrix<local_idx_t, local_idx_t, DeviceType>             node_support_sets_t;
 
 public:
 
-  static Teuchos::RCP< Morkon_Manager<DeviceType, DIM> > MakeInstance(MPI_Comm mpi_comm, int printlevel);
+  static Teuchos::RCP< Morkon_Manager<DeviceType, DIM, FACE_TYPE> > MakeInstance(MPI_Comm mpi_comm, int printlevel);
 
   bool set_problem_map(Tpetra::Map<> *gp_map);
 
@@ -143,7 +141,7 @@ public:
   bool commit_interfaces();
 
   // When data is already on device; called at end of commit_interfaces().
-  bool declare_all_interfaces(segment_interface_mat_t segs_in_ifcs, 
+  bool declare_all_interfaces(face_interface_mat_t faces_in_ifcs, 
                               skin_only_mesh_t dense_idx_mesh,
                               points_t node_coords,
                               local_to_global_idx_t non_dense_node_ids,
@@ -164,7 +162,7 @@ private:
   Teuchos::RCP<Tpetra::Map<> >  m_problem_map;
   interfaces_map_t               m_interfaces;
   skin_only_mesh_t                m_skin_mesh;
-  segment_interface_mat_t  m_seg_ifc_side_mat;
+  face_interface_mat_t  m_face_ifc_side_mat;
   fields_t                           m_fields;
 
   local_to_global_idx_t  m_non_dense_node_ids;

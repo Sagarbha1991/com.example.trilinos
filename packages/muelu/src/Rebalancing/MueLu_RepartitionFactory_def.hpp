@@ -133,8 +133,8 @@ namespace MueLu {
     // Test1: skip repartitioning if current level is less than the specified minimum level for repartitioning
     if (currentLevel.GetLevelID() < startLevel) {
       GetOStream(Statistics0) << "Repartitioning?  NO:" <<
-	"\n  current level = " << Teuchos::toString(currentLevel.GetLevelID()) <<
-	", first level where repartitioning can happen is " + Teuchos::toString(startLevel) << std::endl;
+          "\n  current level = " << Teuchos::toString(currentLevel.GetLevelID()) <<
+          ", first level where repartitioning can happen is " + Teuchos::toString(startLevel) << std::endl;
 
       Set<RCP<const Import> >(currentLevel, "Importer", Teuchos::null);
       return;
@@ -157,7 +157,7 @@ namespace MueLu {
 
       if (numActiveProcesses == 1) {
         GetOStream(Statistics0) << "Repartitioning?  NO:" <<
-	  "\n  # processes with rows = " << Teuchos::toString(numActiveProcesses) << std::endl;
+            "\n  # processes with rows = " << Teuchos::toString(numActiveProcesses) << std::endl;
 
         Set<RCP<const Import> >(currentLevel, "Importer", Teuchos::null);
         return;
@@ -394,7 +394,6 @@ namespace MueLu {
     for (typename map_type::iterator it = sendMap.begin(); it != sendMap.end(); it++)
       MPI_Isend(static_cast<void*>(it->second.getRawPtr()), it->second.size(), MpiType, Teuchos::as<GO>(it->first), msgTag, *rawMpiComm, &sendReqs[cnt++]);
 
-    // Do waits
     map_type recvMap;
     size_t totalGIDs = myGIDs.size();
     for (int i = 0; i < numRecv; i++) {
@@ -409,6 +408,12 @@ namespace MueLu {
       MPI_Recv(static_cast<void*>(recvMap[fromRank].getRawPtr()), count, MpiType, fromRank, msgTag, *rawMpiComm, &status);
 
       totalGIDs += count;
+    }
+
+    // Do waits on send requests
+    if (numSend) {
+      Array<MPI_Status> sendStatuses(numSend);
+      MPI_Waitall(numSend, sendReqs.getRawPtr(), sendStatuses.getRawPtr());
     }
 
     // Merge GIDs

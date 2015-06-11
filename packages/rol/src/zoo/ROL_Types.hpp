@@ -84,6 +84,9 @@ namespace ROL {
     Real gnorm;
     Real cnorm;
     Real snorm;
+    Real aggregateGradientNorm;
+    Real aggregateModelError;
+    bool flag;
     Teuchos::RCP<Vector<Real> > iterateVec;
     Teuchos::RCP<Vector<Real> > lagmultVec;
     Teuchos::RCP<Vector<Real> > minIterVec;
@@ -91,6 +94,9 @@ namespace ROL {
       gnorm(std::numeric_limits<Real>::max()),
       cnorm(std::numeric_limits<Real>::max()),
       snorm(std::numeric_limits<Real>::max()), 
+      aggregateGradientNorm(std::numeric_limits<Real>::max()),
+      aggregateModelError(std::numeric_limits<Real>::max()),
+      flag(false),
       iterateVec(Teuchos::null), lagmultVec(Teuchos::null), minIterVec(Teuchos::null) {}
   };  
   
@@ -419,14 +425,15 @@ namespace ROL {
   /** \enum   ROL::ENonlinearCG
       \brief  Enumeration of nonlinear CG algorithms.
 
-      \arg    HESTENES_STIEFEL   describe
-      \arg    FLETCHER_REEVES    describe
-      \arg    DANIEL             describe 
-      \arg    POLAK_RIBIERE      describe
-      \arg    FLETCHER_CONJDESC  describe
-      \arg    LIU_STOREY         describe
-      \arg    DAI_YUAN           describe
-      \arg    HAGAR_ZHANG        describe
+      \arg    HESTENES_STIEFEL   \f$ \frac{g_{k+1}^\top y_k}{d_k^\top y_k } \f$
+      \arg    FLETCHER_REEVES    \f$ \frac{\|g_{k+1}\|^2}{\|g_k\|^2} \f$
+      \arg    DANIEL             \f$ \frac{g_{k+1}^\top \nabla^2 f(x_k) d_k}{d_k^\top \nabla^2 f(x_k) d_k} \f$
+      \arg    POLAK_RIBIERE      \f$ \frac{g_{k+1}^\top y_k}{\|g_k\|^2} \f$
+      \arg    FLETCHER_CONJDESC  \f$ -\frac{\|g_{k+1}\|^2}{d_k^\top g_k} \f$
+      \arg    LIU_STOREY         \f$ -\frac{g_k^\top y_{k-1} }{d_{k-1}^\top g_{k-1} \f$
+      \arg    DAI_YUAN           \f$ \frac{\|g_{k+1}\|^2}{d_k^\top y_k} \f$
+      \arg    HAGAR_ZHANG        \f$ \frac{g_{k+1}^\top y_k}{d_k^\top y_k} - 2 \frac{\|y_k\|^2}{d_k^\top y_k} \frac{g_{k+1}^\top d_k}{d_k^\top y_k} \f$
+      \arg    OREN_LUENBERGER    \f$ \frac{g_{k+1}^\top y_k}{d_k^\top y_k} - \frac{\|y_k\|^2}{d_k^\top y_k} \frac{g_{k+1}^\top d_k}{d_k^\top y_k} \f$ 
    */
   enum ENonlinearCG{
     NONLINEARCG_HESTENES_STIEFEL = 0,
@@ -437,6 +444,7 @@ namespace ROL {
     NONLINEARCG_LIU_STOREY,
     NONLINEARCG_DAI_YUAN,
     NONLINEARCG_HAGAR_ZHANG,
+    NONLINEARCG_OREN_LUENBERGER,
     NONLINEARCG_LAST
   };
 
@@ -451,6 +459,7 @@ namespace ROL {
       case NONLINEARCG_LIU_STOREY:            retString = "Liu-Storey";                  break;
       case NONLINEARCG_DAI_YUAN:              retString = "Dai-Yuan";                    break;
       case NONLINEARCG_HAGAR_ZHANG:           retString = "Hagar-Zhang";                 break;
+      case NONLINEARCG_OREN_LUENBERGER:       retString = "Oren-Luenberger";             break;
       case NONLINEARCG_LAST:                  retString = "Last Type (Dummy)";           break;
       default:                                retString = "INVALID ENonlinearCG";
     }
@@ -470,7 +479,8 @@ namespace ROL {
             (s == NONLINEARCG_FLETCHER_CONJDESC) ||
             (s == NONLINEARCG_LIU_STOREY)        ||
             (s == NONLINEARCG_DAI_YUAN)          ||
-            (s == NONLINEARCG_HAGAR_ZHANG)
+            (s == NONLINEARCG_HAGAR_ZHANG)       ||
+            (s == NONLINEARCG_OREN_LUENBERGER)      
           );
   }
 
@@ -976,6 +986,27 @@ namespace ROL {
     }
     return CONSTRAINT_EQUALITY;
   }
+
+  // For use in gradient and Hessian checks
+  namespace Finite_Difference_Arrays {
+
+    // Finite difference steps in axpy form    
+    const int shifts[4][4] = { {  1,  0,  0, 0 },  // First order
+                               { -1,  2,  0, 0 },  // Second order
+                               { -1,  2,  1, 0 },  // Third order
+                               { -1, -1,  3, 1 }   // Fourth order
+                             };
+
+      // Finite difference weights     
+     const double weights[4][5] = { { -1.0,          1.0, 0.0,      0.0,      0.0      },  // First order
+                                    {  0.0,     -1.0/2.0, 1.0/2.0,  0.0,      0.0      },  // Second order
+                                    { -1.0/2.0, -1.0/3.0, 1.0,     -1.0/6.0,  0.0      },  // Third order
+                                    {  0.0,     -2.0/3.0, 1.0/12.0, 2.0/3.0, -1.0/12.0 }   // Fourth order
+                                  };
+
+  }
+
+
 
 } // namespace ROL
 

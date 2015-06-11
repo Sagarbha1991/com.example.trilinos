@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -282,6 +282,14 @@ public:
   template< class FunctorType >
   static int team_size_recommended( const FunctorType & functor )
     { return team_size_max( functor ); }
+
+  template< class FunctorType >
+  static int team_size_recommended( const FunctorType & functor , const int vector_length)
+    {
+      int max = team_size_max( functor )/vector_length;
+      if(max<1) max = 1;
+      return max;
+    }
 
   inline static
   int vector_length_max()
@@ -1040,8 +1048,6 @@ public:
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-#ifdef KOKKOS_HAVE_CXX11
-
 namespace Kokkos {
 namespace Impl {
   template<typename iType>
@@ -1397,8 +1403,6 @@ void single(const Impl::ThreadSingleStruct<Impl::CudaTeamMember>& single_struct,
 }
 
 }
-
-#endif // KOKKOS_HAVE_CXX11
 
 namespace Kokkos {
 

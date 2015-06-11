@@ -46,7 +46,7 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
-#ifdef HAVE_INTREPID_KOKKOSCORE
+#if defined(HAVE_INTREPID_KOKKOSCORE)
 #include<Kokkos_Core.hpp>
 #endif
 #include "Intrepid_MiniTensor_TensorBase.h"
@@ -123,24 +123,24 @@ public:
   /// \param dimension the space dimension
   /// \param data_ptr pointer into the array
   ///
-#ifdef HAVE_INTREPID_KOKKOSCORE
+#if defined(HAVE_INTREPID_KOKKOSCORE)
   template<class ArrayT, typename iType>
   Vector(
       typename Kokkos::Impl::enable_if<
-          !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
+      !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
       iType index1);
 
   template<class ArrayT, typename iType>
   Vector(
       typename Kokkos::Impl::enable_if<
-          !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
+      !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
       iType index1,
       iType index2);
 
   template<class ArrayT, typename iType>
   Vector(
       typename Kokkos::Impl::enable_if<
-          !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
+      !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
       iType index1,
       iType index2,
       iType index3);
@@ -176,14 +176,14 @@ public:
   Vector(
       Index const dimension,
       typename Kokkos::Impl::enable_if<
-          !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
+      !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
       iType index1);
 
   template<class ArrayT, typename iType>
   Vector(
       Index const dimension,
       typename Kokkos::Impl::enable_if<
-          !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
+      !Kokkos::Impl::is_same<ArrayT, Index>::value, ArrayT>::type & data,
       iType index1,
       iType index2);
 

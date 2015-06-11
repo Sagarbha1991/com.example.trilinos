@@ -30,7 +30,7 @@
 // This test requires C++11 (for static_assert), so why not use the
 // standard type traits
 #include <type_traits>
-
+#include <utility>
 #include "Teuchos_UnitTestHarness.hpp"
 #include "Teuchos_UnitTestRepository.hpp"
 #include "Teuchos_GlobalMPISession.hpp"
@@ -252,6 +252,54 @@ bool testFadPromote() {
   static_assert(
     is_same<typename Promote<view_view_fad_expr_type,fad_type>::type, base_fad_fad_type >::value,
     "Promote<view_fad_fad_expr_type,fad_type>::type != base_fad_fad_type");
+
+  static_assert(
+    is_same<typename Promote<fad_expr_type,fad_fad_expr_type>::type, fad_fad_type >::value,
+    "Promote<fad_expr_type,fad_fad_expr_type>::type != fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<fad_fad_expr_type,fad_expr_type>::type, fad_fad_type >::value,
+    "Promote<fad_fad_expr_type,fad_expr_type>::type != fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_fad_expr_type,fad_fad_expr_type>::type, fad_fad_type >::value,
+    "Promote<view_fad_expr_type,fad_fad_expr_type>::type != fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<fad_fad_expr_type,view_fad_expr_type>::type, fad_fad_type >::value,
+    "Promote<fad_fad_expr_type,view_fad_expr_type>::type != fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<fad_expr_type,view_fad_fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<fad_expr_type,view_fad_fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_fad_fad_expr_type,fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<view_fad_fad_expr_type,fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_fad_expr_type,view_fad_fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<view_fad_expr_type,view_fad_fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_fad_fad_expr_type,view_fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<view_fad_fad_expr_type,view_fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<fad_expr_type,view_view_fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<fad_expr_type,view_view_fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_view_fad_expr_type,fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<view_view_fad_expr_type,fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_fad_expr_type,view_view_fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<view_fad_expr_type,view_view_fad_expr_type>::type != base_fad_fad_type");
+
+   static_assert(
+    is_same<typename Promote<view_view_fad_expr_type,view_fad_expr_type>::type, base_fad_fad_type >::value,
+    "Promote<view_view_fad_expr_type,view_fad_expr_type>::type != base_fad_fad_type");
 
   // These tests are all compile-time tests, so if the test compiles,
   // it passes...

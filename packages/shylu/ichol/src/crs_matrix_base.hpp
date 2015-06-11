@@ -6,8 +6,6 @@
 /// \brief CRS matrix base object interfaces to user provided input matrices.
 /// \author Kyungjoo Kim (kyukim@sandia.gov)
 
-#include <Kokkos_Core.hpp>
-
 #include "util.hpp"
 #include "coo.hpp"
 
@@ -40,7 +38,7 @@ namespace Example {
     typedef typename value_type_array::value_type*   value_type_array_ptr;
 
     // range type
-    // template<typename T> using range_type = pair<T,T>;
+    template<typename T> using range_type = pair<T,T>;
 
     // external interface
     typedef Coo<CrsMatrixBase> ijv_type;
@@ -70,9 +68,10 @@ namespace Example {
       
       if (_aj.dimension_0() < nnz)
         _aj = ordinal_type_array(_label+"::ColsArray", nnz);
-      
+
       if (_ax.dimension_0() < nnz)
         _ax = value_type_array(_label+"::ValuesArray", nnz);
+      //_ax = value_type_array(Kokkos::ViewAllocateWithoutInitializing(_label+"::ValuesArray"), nnz);
     }
 
   public:
@@ -192,9 +191,16 @@ namespace Example {
     copy(const CrsMatrixBase<VT,OT,ST,SpT,MT> &b) {
       createInternalArrays(b._m, b._n, b._nnz);
 
-      Kokkos::deep_copy(_ap, b._ap);
-      Kokkos::deep_copy(_aj, b._aj);
-      Kokkos::deep_copy(_ax, b._ax);
+      const auto ap_range = range_type<ordinal_type>(0, min(_ap.dimension_0(), b._ap.dimension_0()));
+      const auto aj_range = range_type<size_type>   (0, min(_aj.dimension_0(), b._aj.dimension_0()));
+      const auto ax_range = range_type<size_type>   (0, min(_ax.dimension_0(), b._ax.dimension_0()));
+
+      Kokkos::deep_copy(Kokkos::subview(  _ap, ap_range), 
+                        Kokkos::subview(b._ap, ap_range));
+      Kokkos::deep_copy(Kokkos::subview(  _aj, aj_range),
+                        Kokkos::subview(b._aj, aj_range));
+      Kokkos::deep_copy(Kokkos::subview(  _ax, ax_range),
+                        Kokkos::subview(b._ax, ax_range));
 
       return 0;
     }
@@ -296,17 +302,21 @@ namespace Example {
     }
 
     ostream& showMe(ostream &os) const {
+      streamsize prec = os.precision();
+      os.precision(8);
+      os << scientific;
+
       os << " -- " << _label << " -- " << endl
          << "    # of Rows          = " << _m << endl
          << "    # of Cols          = " << _n << endl
          << "    # of NonZeros      = " << _nnz << endl
          << endl
          << "    RowPtrArray length = " << _ap.dimension_0() << endl
-         << "    ColsArray   length = " << _aj.dimension_0() << endl 
-         << "    ValuesArray length = " << _ax.dimension_0() << endl
+         << "    ColArray    length = " << _aj.dimension_0() << endl 
+         << "    ValueArray  length = " << _ax.dimension_0() << endl
          << endl;
       
-      const int w = 15;
+      const int w = 10;
       if (_ap.size() && _aj.size() && _ax.size()) {
         os << setw(w) <<  "Row" << "  " 
            << setw(w) <<  "Col" << "  " 
@@ -321,6 +331,9 @@ namespace Example {
           }
         }
       }
+
+      os.unsetf(ios::scientific);
+      os.precision(prec);
 
       return os;
     }

@@ -15,53 +15,61 @@ namespace Example {
 
     // data-parallel interface
     // =======================
-    template<typename ScalarType,
-             typename CrsExecViewType,
-             typename ParallelForType>
+    template<typename ParallelForType,
+             typename ScalarType,
+             typename ExecViewTypeA,
+             typename ExecViewTypeC>
     KOKKOS_INLINE_FUNCTION
-    static int invoke(const typename CrsExecViewType::policy_type::member_type &member,
+    static int invoke(typename ExecViewTypeA::policy_type &policy,
+                      const typename ExecViewTypeA::policy_type::member_type &member,
                       const ScalarType alpha,
-                      const CrsExecViewType &A,
+                      ExecViewTypeA &A,
                       const ScalarType beta,
-                      const CrsExecViewType &C);
+                      ExecViewTypeC &C);
 
     // task-data parallel interface
     // ============================
-    template<typename ScalarType,
-             typename CrsExecViewType,
-             typename ParallelForType>
+    template<typename ParallelForType,
+             typename ScalarType,
+             typename ExecViewTypeA,
+             typename ExecViewTypeC>
     class TaskFunctor {
-    private:
-      ScalarType _alpha, _beta;
-      CrsExecViewType _A, _C;
-
     public:
-      typedef typename CrsExecViewType::policy_type policy_type;
+      typedef typename ExecViewTypeA::policy_type policy_type;
       typedef typename policy_type::member_type member_type;
       typedef int value_type;
 
+    private:
+      ScalarType _alpha, _beta;
+      ExecViewTypeA _A;
+      ExecViewTypeC _C;
+
+      policy_type &_policy;
+
+    public:
       TaskFunctor(const ScalarType alpha,
-                  const CrsExecViewType A,
+                  const ExecViewTypeA A,
                   const ScalarType beta,
-                  const CrsExecViewType C)
+                  const ExecViewTypeC C)
         : _alpha(alpha),
           _beta(beta),
           _A(A),
-          _C(C)
+          _C(C),
+          _policy(ExecViewTypeA::task_factory_type::Policy())
       { }
 
       string Label() const { return "Herk"; }
 
       // task execution
       void apply(value_type &r_val) {
-        r_val = Herk::invoke<ScalarType,CrsExecViewType,ParallelForType>(policy_type::member_null(),
-                                                                         _alpha, _A, _beta, _C);
+        r_val = Herk::invoke<ParallelForType>(_policy, _policy.member_single(), 
+                                              _alpha, _A, _beta, _C);
       }
 
       // task-data execution
-      void apply(const member_type &member, value_type &r_val) const {
-        r_val = Herk::invoke<ScalarType,CrsExecViewType,ParallelForType>(member,
-                                                                         _alpha, _A, _beta, _C);
+      void apply(const member_type &member, value_type &r_val) {
+        r_val = Herk::invoke<ParallelForType>(_policy, member, 
+                                              _alpha, _A, _beta, _C);
       }
 
     };
@@ -70,6 +78,6 @@ namespace Example {
 
 }
 
-#include "herk_u_t.hpp"
+#include "herk_u_ct.hpp"
 
 #endif

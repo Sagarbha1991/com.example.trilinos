@@ -826,6 +826,35 @@ void STK_Interface::getMySides(const std::string & sideName,const std::string & 
    stk::mesh::get_selected_entities(ownedBlock,bulkData_->buckets(getSideRank()),sides);
 }
 
+void STK_Interface::getAllSides(const std::string & sideName,std::vector<stk::mesh::Entity> & sides) const
+{
+   stk::mesh::Part * sidePart = getSideset(sideName);
+   TEUCHOS_TEST_FOR_EXCEPTION(sidePart==0,std::logic_error,
+                      "Unknown side set \"" << sideName << "\"");
+
+   stk::mesh::Selector side = *sidePart;
+
+   // grab elements
+   stk::mesh::get_selected_entities(side,bulkData_->buckets(getSideRank()),sides);
+}
+
+void STK_Interface::getAllSides(const std::string & sideName,const std::string & blockName,std::vector<stk::mesh::Entity> & sides) const
+{
+   stk::mesh::Part * sidePart = getSideset(sideName);
+   stk::mesh::Part * elmtPart = getElementBlockPart(blockName);
+   TEUCHOS_TEST_FOR_EXCEPTION(sidePart==0,SidesetException,
+                      "Unknown side set \"" << sideName << "\"");
+   TEUCHOS_TEST_FOR_EXCEPTION(elmtPart==0,ElementBlockException,
+                      "Unknown element block \"" << blockName << "\"");
+
+   stk::mesh::Selector side = *sidePart;
+   stk::mesh::Selector block = *elmtPart;
+   stk::mesh::Selector sideBlock = block & side;
+
+   // grab elements
+   stk::mesh::get_selected_entities(sideBlock,bulkData_->buckets(getSideRank()),sides);
+}
+
 void STK_Interface::getMyNodes(const std::string & nodesetName,const std::string & blockName,std::vector<stk::mesh::Entity> & nodes) const
 {
    stk::mesh::Part * nodePart = getNodeset(nodesetName);

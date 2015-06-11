@@ -38,10 +38,7 @@
 #include <functional>                   // for equal_to
 #include <iterator>                     // for back_insert_iterator, etc
 #include <vector>                       // for vector, etc
-
-#include <boost/array.hpp>              // for array
-#include "boost/unordered/unordered_map.hpp"
-#include "boost/utility/enable_if.hpp"  // for enable_if_c
+#include <unordered_map>
 
 #include <stk_mesh/base/BulkData.hpp>   // for BulkData, EntityLess, etc
 #include <stk_mesh/base/Entity.hpp>     // for Entity, hash_value
@@ -105,7 +102,7 @@ struct shared_face_type
   }
 };
 
-typedef boost::unordered_map<EntityVector,Entity> face_map_type;
+typedef std::unordered_map<EntityVector, Entity, stk::mesh::impl::HashValueForEntityVector> face_map_type;
 typedef std::vector< shared_face_type > shared_face_map_type;
 
 struct create_face_impl
@@ -126,8 +123,7 @@ struct create_face_impl
   {}
 
   template <typename Topology>
-  typename boost::enable_if_c< (Topology::num_faces > 0u), void>::type
-  operator()(Topology t)
+  void operator()(Topology t)
   {
     typedef topology::topology_type< Topology::value> ElemTopology;
 
@@ -135,7 +131,7 @@ struct create_face_impl
 
     BulkData & mesh = m_bucket.mesh();
 
-    boost::array<EntityId,Topology::num_nodes> elem_node_ids;
+    std::array<EntityId,Topology::num_nodes> elem_node_ids;
 
     for (size_t ielem=0, eelem=m_bucket.size(); ielem<eelem; ++ielem) {
       Entity const *elem_nodes = m_bucket.begin_nodes(ielem);
@@ -159,11 +155,11 @@ struct create_face_impl
       for (unsigned side_ordinal=0; side_ordinal < Topology::num_faces; ++side_ordinal) {
 
           if (!face_exists[side_ordinal]) {
-              if (m_face_creation_behavior == CREATE_FACES_FACE_CREATION_CLASSIC) {
+              if (m_face_creation_behavior == FaceCreationBehavior::CREATE_FACES_FACE_CREATION_CLASSIC) {
                   topology faceTopology = elemTopology.face_topology(side_ordinal);
                   stk::mesh::Entity element = m_bucket[ielem];
                   EntityVector permuted_face_nodes(faceTopology.num_nodes());
-                  stk::mesh::impl::find_face_nodes_for_side(mesh, element, side_ordinal, permuted_face_nodes);
+                  stk::mesh::impl::find_side_nodes(mesh, element, side_ordinal, permuted_face_nodes);
                   Entity face;
 
                   typename face_map_type::iterator iface = m_face_map.find(permuted_face_nodes);
@@ -183,18 +179,25 @@ struct create_face_impl
                           Entity & node = permuted_face_nodes[n];
                           mesh.declare_relation(face,node,n);
                       }
+
+                      Permutation permut = mesh.find_permutation(elemTopology, elem_nodes,
+                                                                                       faceTopology, &permuted_face_nodes[0], side_ordinal);
+                      mesh.declare_relation(m_bucket[ielem], face, side_ordinal, permut);
                   }
                   else {
                       face = iface->second;
+                      Permutation permut = mesh.find_permutation(elemTopology, elem_nodes,
+                                                                 faceTopology, &permuted_face_nodes[0], side_ordinal);
+                      ThrowRequireMsg(permut != INVALID_PERMUTATION, "CreateFaces:  could not find valid permutation to connect face to element");
+                      mesh.declare_relation(m_bucket[ielem], face, side_ordinal, permut);
                   }
-                  mesh.declare_relation(m_bucket[ielem], face, side_ordinal);
               }
               else { //
                   topology faceTopology = elemTopology.face_topology(side_ordinal);
                   stk::mesh::Entity elem = m_bucket[ielem];
                   stk::mesh::Part & face_topology_part = mesh.mesh_meta_data().get_cell_topology_root_part( get_cell_topology( faceTopology));
                   stk::mesh::Entity new_face = stk::mesh::impl::get_or_create_face_at_element_side(
-                          mesh, elem, side_ordinal, m_available_ids[m_count_faces], face_topology_part);
+                          mesh, elem, side_ordinal, m_available_ids[m_count_faces], stk::mesh::PartVector(1,&face_topology_part));
                   if (mesh.identifier(new_face) == m_available_ids[m_count_faces]) {
                       stk::mesh::impl::connect_face_to_other_elements(mesh, new_face, elem,side_ordinal);
                       m_count_faces++;
@@ -204,12 +207,6 @@ struct create_face_impl
       }
     }
   }
-
-  template <typename Topology>
-  typename boost::enable_if_c< (Topology::num_faces == 0u), void>::type
-  operator()(Topology t)
-  {}
-
 
   //members
   size_t                                          & m_count_faces;
@@ -240,7 +237,7 @@ void create_faces( BulkData & mesh, bool connect_faces_to_edges)
 
 void create_faces( BulkData & mesh, const Selector & element_selector, bool connect_faces_to_edges)
 {
-    internal_create_faces(mesh, element_selector, connect_faces_to_edges, CREATE_FACES_FACE_CREATION_CLASSIC);
+    internal_create_faces(mesh, element_selector, connect_faces_to_edges, FaceCreationBehavior::CREATE_FACES_FACE_CREATION_CLASSIC);
 }
 
 void internal_create_faces( BulkData & mesh, const Selector & element_selector, bool connect_faces_to_edges, FaceCreationBehavior faceCreationBehavior)
@@ -337,7 +334,8 @@ void internal_create_faces( BulkData & mesh, const Selector & element_selector, 
   if (i_started) {
     bool oldOption = mesh.use_entity_ids_for_resolving_sharing();
     mesh.set_use_entity_ids_for_resolving_sharing(false);
-    mesh.modification_end_for_entity_creation( stk::topology::FACE_RANK, BulkData::MOD_END_COMPRESS_AND_SORT );
+    std::vector<EntityRank> entity_rank_vector = {stk::topology::FACE_RANK};
+    mesh.modification_end_for_entity_creation( entity_rank_vector, BulkData::MOD_END_COMPRESS_AND_SORT );
     mesh.set_use_entity_ids_for_resolving_sharing(oldOption);
   }
 }

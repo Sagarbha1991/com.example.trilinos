@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -470,6 +470,11 @@ public:
   int team_size_recommended( const FunctorType & )
     { return execution_space::thread_pool_size(2); }
 
+  template< class FunctorType >
+  inline static
+  int team_size_recommended( const FunctorType &, const int& )
+    { return execution_space::thread_pool_size(2); }
+
   //----------------------------------------
 
 private:
@@ -545,8 +550,6 @@ int OpenMP::thread_pool_rank()
 
 } // namespace Kokkos
 
-
-#ifdef KOKKOS_HAVE_CXX11
 
 namespace Kokkos {
 
@@ -759,8 +762,6 @@ void single(const Impl::ThreadSingleStruct<Impl::OpenMPexecTeamMember>& single_s
   single_struct.team_member.team_broadcast(val,0);
 }
 }
-
-#endif // KOKKOS_HAVE_CXX11
 
 #endif /* #ifndef KOKKOS_OPENMPEXEC_HPP */
 

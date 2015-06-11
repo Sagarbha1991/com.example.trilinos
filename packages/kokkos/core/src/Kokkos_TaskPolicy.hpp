@@ -2,13 +2,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -37,7 +37,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -365,13 +365,6 @@ void respawn( TaskPolicy<ExecSpace>   & policy
 
 template< class ExecSpace >
 void wait( TaskPolicy< ExecSpace > & );
-
-template< class A0 , class A1 >
-inline
-void wait( const Future<A0,A1> & future )
-{
-  wait( Future< void , typename Future<A0,A1>::execution_space >( future ) );
-}
 
 } /* namespace Experimental */
 } /* namespace Kokkos */

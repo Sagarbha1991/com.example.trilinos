@@ -706,15 +706,8 @@ TEUCHOS_UNIT_TEST( RCP, circularReference_a_then_c )
 
 #ifdef TEUCHOS_DEBUG
 
-#if !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
     TEST_THROW(c = null, DanglingReferenceError);
-    // NOTE: Above, operator==(...) exhibits the 'strong' guarantee!  NOTE:
-    // For Some reason, with GCC 4.8.3, the catch() satement refuses to catch
-    // the exception being thrown inside of the destructor.  This use case is
-    // a very unusal use case and likley will not happen in real programs.
-    // This test passes with ever other compiler (including GCC 4.9.x) so I am
-    // pretty sure this is a defect in GCC 4.8.x.
-#endif
+    // NOTE: Above, operator==(...) exhibits the 'strong' guarantee!
 
     // Since an exception was thrown, the 'c' object never got deleted.
     // Therefore, we need to disable 'c' calling 'a' on delete and the object
@@ -791,12 +784,72 @@ TEUCHOS_UNIT_TEST( RCP, circularReference_self )
 }
 
 
-TEUCHOS_UNIT_TEST( RCP, danglingPtr )
+TEUCHOS_UNIT_TEST( RCP, danglingPtr1 )
 {
   ECHO(RCP<A> a_rcp = rcp(new A));
   ECHO(Ptr<A> a_ptr = a_rcp());
   ECHO(A *badPtr = a_rcp.getRawPtr());
   ECHO(a_rcp = null);
+#ifdef TEUCHOS_DEBUG
+  TEST_THROW( *a_ptr, DanglingReferenceError );
+  (void)badPtr;
+#else
+  TEST_EQUALITY( a_ptr.getRawPtr(), badPtr );
+#endif
+}
+
+
+TEUCHOS_UNIT_TEST( RCP, danglingPtr2 )
+{
+  ECHO(Ptr<A> a_ptr);
+  ECHO(A *badPtr = 0);
+  {
+    ECHO(RCP<A> a_rcp = rcp(new A));
+    ECHO(badPtr = a_rcp.getRawPtr());
+    ECHO(a_ptr = a_rcp.ptr());
+    TEST_EQUALITY( a_ptr.getRawPtr(), badPtr );
+  }
+#ifdef TEUCHOS_DEBUG
+  TEST_THROW( *a_ptr, DanglingReferenceError );
+  (void)badPtr;
+#else
+  TEST_EQUALITY( a_ptr.getRawPtr(), badPtr );
+#endif
+}
+
+
+TEUCHOS_UNIT_TEST( RCP, danglingPtr3 )
+{
+  ECHO(Ptr<A> a_ptr);
+  ECHO(A *badPtr = 0);
+  {
+    ECHO(RCP<A> a_rcp = rcp(new A));
+    ECHO(badPtr = a_rcp.getRawPtr());
+    ECHO(Ptr<A> a_ptr2(a_rcp.ptr()));
+    ECHO(Ptr<A> a_ptr3(a_ptr2));
+    ECHO(a_ptr = a_ptr3);
+    TEST_EQUALITY( a_ptr.getRawPtr(), badPtr );
+  }
+#ifdef TEUCHOS_DEBUG
+  TEST_THROW( *a_ptr, DanglingReferenceError );
+  (void)badPtr;
+#else
+  TEST_EQUALITY( a_ptr.getRawPtr(), badPtr );
+#endif
+}
+
+
+TEUCHOS_UNIT_TEST( RCP, danglingPtr4 )
+{
+  ECHO(Ptr<A> a_ptr);
+  ECHO(A *badPtr = 0);
+  {
+    ECHO(RCP<C> c_rcp = rcp(new C));
+    ECHO(badPtr = c_rcp.getRawPtr());
+    ECHO(Ptr<A> a_ptr2(c_rcp.ptr()));
+    ECHO(a_ptr = a_ptr2);
+    TEST_EQUALITY( a_ptr.getRawPtr(), badPtr );
+  }
 #ifdef TEUCHOS_DEBUG
   TEST_THROW( *a_ptr, DanglingReferenceError );
   (void)badPtr;

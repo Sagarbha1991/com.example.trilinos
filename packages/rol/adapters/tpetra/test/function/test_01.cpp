@@ -75,190 +75,40 @@ typedef RCP<MV>            MVP;
 typedef RCP<SV>            SVP;
 
 
-
-// Check 2-norm of difference between an std::vector and a Tpetra::MultiVector
-bool equal(const std::vector<RealT> &s, const MV &t) {
-
-    RealT val = 0;
-
-    int dim = s.size();
-
-    // Get a view to the Tpetra vector elements
-    ArrayRCP<const RealT> t_view(dim,0);
- 
-    t_view = t.getData(0);
-
-    for(int i=0;i<dim;++i) {
-        RealT d = t_view[i]-s[i];
-        val += d*d;
-    }  
-
-    return val < 1e-15;
-}
-
-// Put std::vector values into Tpetra::MultiVector
-void deep_copy(const std::vector<RealT> &s, MV &t) {
-    int dim = s.size();
-    for(int i=0;i<dim;++i) {
-        t.replaceLocalValue(i,0,s[i]); 
-    }
-}
-
-// Put Tpetra::MultiVector values into std::vector 
-void deep_copy(const MV &t, std::vector<RealT> &s) {
-    int dim = s.size();
-
-    // Get a view to the Tpetra vector elements
-    ArrayRCP<const RealT> t_view(dim,0);
- 
-    t_view = t.getData(0);
-
-    for(int i=0;i<dim;++i) {
-        s[i] = t_view[i]; 
-    }
-}
-
-
 int test(RCP<const Tpetra::Comm<int> > comm, int dim) {
 
-    RCP<Map> map = rcp( new Map(dim,0,comm) ); 
+    // Get number of processes
+    const int numProc = comm->getSize(); 
+
+    // Total size over all processes
+    const int numGblIndices = numProc*dim;
+
+    RCP<Map> map = rcp( new Map(numGblIndices,0,comm) ); 
 
     int errorFlag = 0;
 
-    RealT eps = 1e-4;
-
     // Upper bound is +0.75
-    MVP ut = rcp( new MV(map,1,true) );
-    ut->putScalar(0.75);
-    SVP us = rcp( new SV(dim,0) );
-    deep_copy(*ut,*us);        
+    MVP u = rcp( new MV(map,1,true) );
+    u->putScalar(0.9);
 
     // Lower bound is -0.75
-    MVP lt = rcp( new MV(map,1,true) );
-    lt->putScalar(-0.75);
-    SVP ls = rcp( new SV (dim,0) );
-    deep_copy(*lt,*ls);        
-
+    MVP l = rcp( new MV(map,1,true) );
+    l->putScalar(-0.9);
+ 
     // Optimization variable
-    MVP xt = rcp( new MV(map,1,true) );
-    xt->randomize();
-    SVP xs = rcp( new SV(dim,0) );
-    deep_copy(*xt,*xs);        
- 
-    ROL::StdBoundConstraint<RealT> scon(*ls,*us);
-    ROL::TpetraBoundConstraint<RealT,LO,GO,Node> tcon(lt,ut);
+    MVP x = rcp( new MV(map,1,true) );
+    x->randomize();
 
-    ROL::StdVector<RealT> Xs(xs);
-    ROL::TpetraMultiVector<RealT,LO,GO,Node> Xt(xt);
+    ROL::TpetraBoundConstraint<RealT,LO,GO,Node> tcon(l,u);
 
-    // Check Feasibility
-    bool ft = tcon.isFeasible(Xt);
-    bool fs = scon.isFeasible(Xs);
+    ROL::TpetraMultiVector<RealT,LO,GO,Node> X(x);
 
-    if(ft != fs) {
+    // Prune the vector
+    tcon.project(X);
+
+    if(!tcon.isFeasible(X)) {
         ++errorFlag; 
-    } 
-
-    // Check lower active pruning
-    MVP vt = rcp( new MV(map,1,true) );
-    vt->randomize();
-    SVP vs = rcp( new SV(dim,0) );
-    deep_copy(*vt,*vs);
-     
-    ROL::StdVector<RealT> Vs(vs);
-    ROL::TpetraMultiVector<RealT,LO,GO,Node> Vt(vt);
-
-    tcon.pruneLowerActive(Vt,Xt,eps);
-    scon.pruneLowerActive(Vs,Xs,eps);
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
- 
-    // Check upper active pruning
-    vt->randomize();
-    deep_copy(*vt,*vs);
-     
-    tcon.pruneUpperActive(Vt,Xt,eps);
-    scon.pruneUpperActive(Vs,Xs,eps);
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
-   
-    // Check active pruning
-    vt->randomize();
-    deep_copy(*vt,*vs);
-     
-    tcon.pruneActive(Vt,Xt,eps);
-    scon.pruneActive(Vs,Xs,eps);
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
-
-    // Check lower active pruning with gradient 
-    MVP gt = rcp( new MV(map,1,true) );
-    gt->randomize();
-    SVP gs = rcp( new SV(dim,0) );
-    deep_copy(*gt,*gs);
-     
-    ROL::StdVector<RealT> Gs(gs);
-    ROL::TpetraMultiVector<RealT,LO,GO,Node> Gt(gt);
-
-    vt->randomize();
-    deep_copy(*vt,*vs);
-     
-    tcon.pruneLowerActive(Vt,Gt,Xt,eps);
-    scon.pruneLowerActive(Vs,Gs,Xs,eps);
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
-
-    // Check upper active pruning with gradient 
-    vt->randomize();
-    deep_copy(*vt,*vs);
-     
-    tcon.pruneUpperActive(Vt,Gt,Xt,eps);
-    scon.pruneUpperActive(Vs,Gs,Xs,eps);
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
-
-    // Check active pruning with gradient 
-    vt->randomize();
-    deep_copy(*vt,*vs);
-     
-    tcon.pruneActive(Vt,Gt,Xt,eps);
-    scon.pruneActive(Vs,Gs,Xs,eps);
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
-  
-    // Check projection 
-    tcon.project(Xt);
-    scon.project(Xs);
-
-    if(!equal(*xs,*xt)) {
-        ++errorFlag;
     }
-
-    tcon.setVectorToUpperBound(Vt); 
-    scon.setVectorToUpperBound(Vs); 
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
- 
-    tcon.setVectorToLowerBound(Vt); 
-    scon.setVectorToLowerBound(Vs); 
-
-    if(!equal(*vs,*vt)) {
-        ++errorFlag;
-    } 
 
     return errorFlag; 
 } 
@@ -268,11 +118,11 @@ int test(RCP<const Tpetra::Comm<int> > comm, int dim) {
 
 int main(int argc, char *argv[]) {
 
-    Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
 
     int iprint     = argc - 1;
     Teuchos::RCP<std::ostream> outStream;
     Teuchos::oblackholestream bhs; // outputs nothing
+    Teuchos::GlobalMPISession mpiSession (&argc, &argv, &bhs);
 
     if (iprint > 0)
         outStream = Teuchos::rcp(&std::cout, false);
@@ -283,16 +133,26 @@ int main(int argc, char *argv[]) {
 
     try {
         
-
         Platform &platform = Tpetra::DefaultPlatform::getDefaultPlatform();
+
         RCP<const Tpetra::Comm<int> > comm = platform.getComm();
 
+
+        // Maximum dimension of test for a given process
         int maxdim = 100; 
 
         for(int i = 10;i<maxdim;++i) {
-            errorFlag += test(comm,i);
+            errorFlag += test(comm,10);
         }
-         
+
+        typedef std::vector<int> ivec;  
+        Teuchos::RCP<ivec> a_rcp = Teuchos::rcp(new ivec(2,1));
+        Teuchos::RCP<ivec> b_rcp = Teuchos::rcp(new ivec(3,2));
+        Teuchos::ArrayRCP<Teuchos::RCP<ivec>> v(2); 
+        v[0] = a_rcp;
+        v[1] = b_rcp;   
+        (*b_rcp)[2] = 3;
+
     }
 
     catch (std::logic_error err) {

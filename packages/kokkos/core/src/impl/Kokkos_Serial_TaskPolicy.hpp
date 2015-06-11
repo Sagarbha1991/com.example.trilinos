@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -255,7 +255,6 @@ public:
 
   void schedule();
   static void execute_ready_tasks();
-  static void wait( const Future< void , Kokkos::Serial > & );
 
   //----------------------------------------
 
@@ -626,8 +625,6 @@ private:
 
   typedef Impl::TaskMember< execution_space , void , void > task_root_type ;
 
-  TaskPolicy & operator = ( const TaskPolicy & ) /* = delete */ ;
-
   template< class FunctorType >
   static inline
   const task_root_type * get_task_root( const FunctorType * f )
@@ -644,7 +641,7 @@ private:
       return static_cast< task_root_type * >( static_cast< task_type * >(f) );
     }
 
-  const unsigned m_default_dependence_capacity ;
+  unsigned m_default_dependence_capacity ;
 
 public:
 
@@ -663,6 +660,12 @@ public:
   TaskPolicy( const TaskPolicy &
             , const unsigned arg_default_dependence_capacity )
     : m_default_dependence_capacity( arg_default_dependence_capacity ) {}
+
+  TaskPolicy & operator = ( const TaskPolicy &rhs ) 
+    {
+      m_default_dependence_capacity = rhs.m_default_dependence_capacity;
+      return *this;
+    }
 
   //----------------------------------------
 
@@ -823,22 +826,14 @@ public:
     {}
 #endif
 
-  inline static
-  void wait( const Future< void , Kokkos::Serial > & future )
-  { task_root_type::wait( future ); }
-
   //----------------------------------------
 
-  static member_type & member_null();
+  static member_type & member_single();
 };
 
 inline
 void wait( TaskPolicy< Kokkos::Serial > & )
 { Impl::TaskMember< Kokkos::Serial , void , void >::execute_ready_tasks(); }
-
-inline
-void wait( const Future< void , Kokkos::Serial > & future )
-{ Impl::TaskMember< Kokkos::Serial , void , void >::wait( future ); }
 
 } /* namespace Experimental */
 } // namespace Kokkos

@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -84,7 +84,6 @@ public:
    */
   static Impl::AllocationTracker allocate_and_track( const std::string & label, const size_t size );
 
-
   /*--------------------------------*/
   /** \brief  Cuda specific function to attached texture object to an allocation.
    *          Output the texture object, base pointer, and offset from the input pointer.
@@ -102,6 +101,24 @@ public:
   static void access_error( const void * const );
 };
 
+namespace Impl {
+/// \brief Initialize lock array for arbitrary size atomics.
+///
+/// Arbitrary atomics are implemented using a hash table of locks
+/// where the hash value is derived from the address of the
+/// object for which an atomic operation is performed.
+/// This function initializes the locks to zero (unset).
+void init_lock_array_cuda_space();
+
+/// \brief Retrieve the pointer to the lock array for arbitrary size atomics.
+///
+/// Arbitrary atomics are implemented using a hash table of locks
+/// where the hash value is derived from the address of the
+/// object for which an atomic operation is performed.
+/// This function retrieves the lock array pointer.
+/// If the array is not yet allocated it will do so.
+int* lock_array_cuda_space_ptr(bool deallocate = false);
+}
 } // namespace Kokkos
 
 /*--------------------------------------------------------------------------*/

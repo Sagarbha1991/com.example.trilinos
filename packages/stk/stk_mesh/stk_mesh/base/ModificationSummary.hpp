@@ -32,6 +32,10 @@ public:
     {
     }
 
+    void track_add_to_ghosting(const stk::mesh::Ghosting & ghosts, const std::vector<stk::mesh::EntityProc> & add_send )
+    {
+    }
+
     void track_destroy_relation(stk::mesh::Entity e_from, stk::mesh::Entity e_to, stk::mesh::RelationIdentifier rel)
     {
     }
@@ -45,6 +49,10 @@ public:
     }
 
     void track_change_entity_owner(const std::vector<stk::mesh::EntityProc> &changes)
+    {
+    }
+
+    void track_set_global_id(stk::mesh::Entity entity, stk::mesh::EntityId newId)
     {
     }
 
@@ -102,6 +110,8 @@ public:
 
     void track_change_ghosting(const stk::mesh::Ghosting & ghosts, const std::vector<stk::mesh::EntityProc> & add_send , const std::vector<stk::mesh::EntityKey> & remove_receive );
 
+    void track_add_to_ghosting(const stk::mesh::Ghosting & ghosts, const std::vector<stk::mesh::EntityProc> & add_send );
+
     void track_destroy_relation(stk::mesh::Entity e_from, stk::mesh::Entity e_to, stk::mesh::RelationIdentifier rel);
 
     void track_declare_relation(stk::mesh::Entity e_from, stk::mesh::Entity e_to, stk::mesh::RelationIdentifier rel, stk::mesh::Permutation permut);
@@ -111,6 +121,8 @@ public:
     void track_change_entity_owner(const std::vector<stk::mesh::EntityProc> &changes);
 
     void track_change_entity_id(stk::mesh::EntityId newId, stk::mesh::Entity entity);
+
+    void track_set_global_id(stk::mesh::Entity entity, stk::mesh::EntityId newId);
 
     void track_destroy_entity(stk::mesh::Entity entity);
 

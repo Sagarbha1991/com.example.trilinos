@@ -625,6 +625,10 @@ namespace MueLu {
         // On intermediate levels, we do cycles
         RCP<Level> Coarse = Levels_[startLevel+1];
 
+        // Utils::Write("X_before.mm", X);
+        // Utils::Write("B_before.mm", B);
+
+
         {
           // ============== PRESMOOTHING ==============
           RCP<TimeMonitor> STime      = rcp(new TimeMonitor(*this, prefix + "Solve : smoothing (total)"      , Timings0));
@@ -637,6 +641,8 @@ namespace MueLu {
             GetOStream(Warnings1) << "Level " <<  startLevel << ": No PreSmoother!" << std::endl;
           }
         }
+        // Utils::Write("X_after.mm", X);
+        // Utils::Write("B_after.mm", B);
 
         RCP<MultiVector> residual;
         {
@@ -644,6 +650,9 @@ namespace MueLu {
           RCP<TimeMonitor> ALevelTime = rcp(new TimeMonitor(*this, prefix + "Solve : residual calculation" + levelSuffix, Timings0));
           residual = Utils::Residual(*A, X, B);
         }
+        // Utils::Write("R_after.mm", *residual);
+        // if (startLevel == 0)
+          // exit(1);
 
         RCP<Operator>    P = Coarse->Get< RCP<Operator> >("P");
         RCP<MultiVector> coarseRhs, coarseX;
@@ -855,12 +864,9 @@ namespace MueLu {
     int root = comm->getRank();
 
 #ifdef HAVE_MPI
-    RCP<const Teuchos::MpiComm<int> > mpiComm = rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm);
-    MPI_Comm rawComm = (*mpiComm->getRawMpiComm())();
-
-    std::vector<int> numGlobalLevels(comm->getSize());
-    MPI_Allgather(&numLevels, 1, MPI_INT, &numGlobalLevels[0], 1, MPI_INT, rawComm);
-    root = std::max_element(numGlobalLevels.begin(), numGlobalLevels.end()) - numGlobalLevels.begin();
+    int smartData = numLevels*comm->getSize() + comm->getRank(), maxSmartData;
+    reduceAll(*comm, Teuchos::REDUCE_MAX, smartData, Teuchos::ptr(&maxSmartData));
+    root = maxSmartData % comm->getSize();
 #endif
 
     std::string outstr;
@@ -940,6 +946,9 @@ namespace MueLu {
     }
 
 #ifdef HAVE_MPI
+    RCP<const Teuchos::MpiComm<int> > mpiComm = rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm);
+    MPI_Comm rawComm = (*mpiComm->getRawMpiComm())();
+
     int strLength = outstr.size();
     MPI_Bcast(&strLength, 1, MPI_INT, root, rawComm);
     if (comm->getRank() != root)

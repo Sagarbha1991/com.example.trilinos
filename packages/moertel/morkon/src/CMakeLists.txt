@@ -16,6 +16,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/kokkos/containers/src)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/kokkos/algorithms/src)
 # Other Tpetra includes needed
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/tpetra/kernels/src)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/tpetra/kernels/src/impl)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/tpetra/core/src)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/tpetra/core/src/kokkos_refactor)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/packages/tpetra/classic/src)
@@ -43,10 +44,20 @@ SET(INCLUDES
    )
 
 SET(CPPSOURCES
-    dummy.cpp
+    morkon_core_unit_test.cpp
    )
 
 
-ADD_LIBRARY(morkon ${CPPSOURCES} ${INCLUDES})
+#TRIBITS_ADD_LIBRARY(morkon HEADERS ${INCLUDES})
+
+TRIBITS_ADD_EXECUTABLE_AND_TEST(
+  morkon_core_unit_test
+  NAME morkon_core_unit_test
+  SOURCES morkon_core_unit_test.cpp
+  ARGS 
+  COMM mpi
+  PASS_REGULAR_EXPRESSION "Test passed!"
+  )
+
 #SET_PROPERTY(TARGET morkon_exp_exp_lib APPEND PROPERTY LINKER_LANGUAGE CXX)
 

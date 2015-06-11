@@ -171,13 +171,13 @@ struct blasOpenMPBatchRight {
 
 //#pragma loop(ivdep)
 
-for (unsigned int i = 0u; i != msize; ++i) {
+for (std::size_t i = 0u; i != static_cast<std::size_t>(msize); ++i) {
   
-    for (unsigned int k = 0u; k != ksize; ++k) {
+    for (std::size_t k = 0u; k != static_cast<std::size_t>(ksize); ++k) {
 
         const Scalar r = subA(i,k);
 
-        for (unsigned int j = 0u; j != nsize; ++j) {
+        for (std::size_t j = 0u; j != static_cast<std::size_t>(nsize); ++j) {
 
 		subC(i,j)=beta*subC(i,j)+alpha*r*subB(k,j);
 
@@ -262,9 +262,9 @@ template<typename Scalar>
 #ifdef KOKKOS_HAVE_CUDA
 	
 	struct MultiGemm<double,Kokkos::Cuda,Kokkos::LayoutLeft,2>{
-		static void GEMM(Teuchos::ETransp transA, Teuchos::ETransp transB, Scalar alpha,
+		static void GEMM(Teuchos::ETransp transA, Teuchos::ETransp transB, double alpha,
            Kokkos::View<double**,Kokkos::LayoutLeft,Kokkos::Cuda> A,  Kokkos::View<double**,Kokkos::LayoutLeft,Kokkos::Cuda> B,
-          Scalar beta, Kokkos::View<double**,Kokkos::LayoutLeft,Kokkos::Cuda> C){
+          double beta, Kokkos::View<double**,Kokkos::LayoutLeft,Kokkos::Cuda> C){
 		const int m = static_cast<int> (C.dimension_0()),
         n = static_cast<int> (C.dimension_1 ()),
         k = (transA == Teuchos::NO_TRANS ? A.dimension_1 () : A.dimension_0 ());
@@ -314,7 +314,7 @@ cublasDgemm(transA, transB, n, m, k, alpha, B.ptr_on_device(), n, A.ptr_on_devic
 };
 
 	struct MultiGemm<double,Kokkos::Cuda,Kokkos::LayoutLeft,3>{
-		static void GEMM(Teuchos::ETransp transA, Teuchos::ETransp transB, Scalar alpha,
+		static void GEMM(Teuchos::ETransp transA, Teuchos::ETransp transB, double alpha,
            Kokkos::View<double***,Kokkos::LayoutLeft,Kokkos::Cuda> A,  Kokkos::View<double***,Kokkos::LayoutLeft,Kokkos::Cuda> B,
           double beta, Kokkos::View<double***,Kokkos::LayoutLeft,Kokkos::Cuda> C){
 		const int m = static_cast<int> (C.dimension_1()),
@@ -584,8 +584,8 @@ Intrepid::FieldContainer<double>testcontainerB(5);
 	for(int i=0;i<5;i++){
 		testcontainerB(i)=Teuchos::ScalarTraits<double>::random();
 }
-double result=	KokkosDenseMat::MultiGemm<double,void,void,1>::DDOT(5, &testcontainerA[0], 1, &testcontainerB[0], 1);
-/*
+/*double result=	KokkosDenseMat::MultiGemm<double,void,void,1>::DDOT(5, &testcontainerA[0], 1, &testcontainerB[0], 1);
+
 std::cout <<"A: "<<std::endl;
 	for(int i=0;i<5;i++){
 		std::cout <<testcontainerA(i)<<",";

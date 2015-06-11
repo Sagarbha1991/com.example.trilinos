@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -53,6 +53,7 @@
 #include <TestViewImpl.hpp>
 
 #include <TestViewAPI.hpp>
+#include <TestViewOfClass.hpp>
 #include <TestViewSubview.hpp>
 #include <TestAtomic.hpp>
 #include <TestTile.hpp>
@@ -84,6 +85,27 @@ TEST_F( serial, view_impl) {
 
 TEST_F( serial, view_api) {
   TestViewAPI< double , Kokkos::Serial >();
+}
+
+TEST_F( serial , view_nested_view )
+{
+  ::Test::view_nested_view< Kokkos::Serial >();
+}
+
+TEST_F( serial, view_subview_auto_1d_left ) {
+  TestViewSubview::test_auto_1d< Kokkos::LayoutLeft,Kokkos::Serial >();
+}
+
+TEST_F( serial, view_subview_auto_1d_right ) {
+  TestViewSubview::test_auto_1d< Kokkos::LayoutRight,Kokkos::Serial >();
+}
+
+TEST_F( serial, view_subview_auto_1d_stride ) {
+  TestViewSubview::test_auto_1d< Kokkos::LayoutStride,Kokkos::Serial >();
+}
+
+TEST_F( serial, view_subview_assign_strided ) {
+  TestViewSubview::test_1d_strided_assignment< Kokkos::Serial >();
 }
 
 TEST_F( serial, view_subview_left_0 ) {
@@ -256,11 +278,9 @@ TEST_F( serial , atomics )
   ASSERT_TRUE( ( TestAtomic::Loop<float,Kokkos::Serial>(100,2) ) );
   ASSERT_TRUE( ( TestAtomic::Loop<float,Kokkos::Serial>(100,3) ) );
 
-#if defined( KOKKOS_HAVE_CXX11 )
   ASSERT_TRUE( ( TestAtomic::Loop<Kokkos::complex<double> ,Kokkos::Serial>(100,1) ) );
   ASSERT_TRUE( ( TestAtomic::Loop<Kokkos::complex<double> ,Kokkos::Serial>(100,2) ) );
   ASSERT_TRUE( ( TestAtomic::Loop<Kokkos::complex<double> ,Kokkos::Serial>(100,3) ) );
-#endif
 }
 
 //----------------------------------------------------------------------------

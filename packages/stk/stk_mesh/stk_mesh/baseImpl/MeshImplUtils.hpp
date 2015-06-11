@@ -54,20 +54,23 @@ namespace impl {
 //stk-mesh capabilities.
 //----------------------------------------------------------------------
 
-void find_elements_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
-void find_faces_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& faces);
+void find_elements_these_nodes_have_in_common(const BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
+void find_faces_these_nodes_have_in_common(const BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& faces);
 
 bool do_these_nodes_have_any_shell_elements_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes);
 
-void find_locally_owned_elements_these_nodes_have_in_common(BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
+void find_locally_owned_elements_these_nodes_have_in_common(const BulkData& mesh, unsigned numNodes, const Entity* nodes, std::vector<Entity>& elems);
 
 bool find_element_edge_ordinal_and_equivalent_nodes(BulkData& mesh, Entity element, unsigned numEdgeNodes, const Entity* edgeNodes, unsigned& elemEdgeOrdinal, Entity* elemEdgeNodes);
 
 bool shared_entities_modified_on_any_proc(const BulkData& mesh, stk::ParallelMachine comm);
 
 void get_ghost_data( const BulkData& bulkData, Entity entity, std::vector<EntityGhostData> & dataVector );
-void connectEntityToEdge(stk::mesh::BulkData& stkMeshBulkData, stk::mesh::Entity entity,
-        stk::mesh::Entity edge, const stk::mesh::Entity* nodes, size_t numNodes);
+
+void connectUpwardEntityToEntity(stk::mesh::BulkData& mesh, stk::mesh::Entity upward_entity,
+        stk::mesh::Entity entity, const stk::mesh::Entity* nodes);
+
+void delete_entities_and_upward_relations(stk::mesh::BulkData &bulkData, const stk::mesh::EntityVector &entities);
 
 void internal_generate_parallel_change_lists( const BulkData & mesh ,
                                               const std::vector<EntityProc> & local_change ,
@@ -81,57 +84,8 @@ void internal_clean_and_verify_parallel_change(
 
 int check_no_shared_elements_or_higher(const BulkData& mesh);
 int check_for_connected_nodes(const BulkData& mesh);
-
-//template <typename Topology>
-//typename boost::enable_if_c< (Topology::num_faces > 0u), void>::type
-//find_face_nodes_for_side(BulkData& mesh, Entity& element, int side_ordinal, EntityVector & permuted_face_nodes)
-//{
-//    typedef topology::topology_type< Topology::value> ElemTopology;
-//    ElemTopology elemTopology;
-//    stk::topology faceTopology = elemTopology.face_topology(side_ordinal);
-//
-//    boost::array<EntityId,Topology::num_nodes> elem_node_ids;
-//    Entity const *elem_nodes = mesh.begin_nodes(element);
-//    ThrowRequire(mesh.num_nodes(element) == Topology::num_nodes);
-//    for (size_t n=0; n<Topology::num_nodes; ++n) {
-//        elem_node_ids[n] = mesh.identifier(elem_nodes[n]);
-//    }
-//
-//    // Use node identifier instead of node local_offset for cross-processor consistency.
-//    typedef std::vector<EntityId>  EntityIdVector;
-//    EntityIdVector side_node_ids(faceTopology.num_nodes());
-//    Topology::face_nodes(elem_node_ids, side_ordinal, side_node_ids.begin());
-//    unsigned smallest_permutation;
-//    permuted_face_nodes.resize(faceTopology.num_nodes());
-//    //if this is a shell OR these nodes are connected to a shell
-//    EntityVector side_nodes(faceTopology.num_nodes());
-//    for (unsigned count=0 ; count<faceTopology.num_nodes() ; ++count) {
-//        side_nodes[count] = mesh.get_entity(stk::topology::NODE_RANK,side_node_ids[count]);
-//    }
-//    bool is_connected_to_shell = stk::mesh::impl::do_these_nodes_have_any_shell_elements_in_common(mesh,faceTopology.num_nodes(),&side_nodes[0]);
-//
-//    if (elemTopology.is_shell || is_connected_to_shell) {
-//
-//        EntityIdVector element_node_id_vector(faceTopology.num_nodes());
-//        EntityIdVector element_node_ordinal_vector(faceTopology.num_nodes());
-//        EntityVector element_node_vector(faceTopology.num_nodes());
-//        elemTopology.face_node_ordinals(side_ordinal, &element_node_ordinal_vector[0]);
-//        for (unsigned count = 0; count < faceTopology.num_nodes(); ++count) {
-//            element_node_vector[count] = mesh.begin_nodes(element)[element_node_ordinal_vector[count]];
-//            element_node_id_vector[count] = mesh.identifier(element_node_vector[count]);
-//        }
-//        smallest_permutation = faceTopology.lexicographical_smallest_permutation_preserve_polarity(side_node_ids, element_node_id_vector);
-//        faceTopology.permutation_nodes(&element_node_vector[0], smallest_permutation, permuted_face_nodes.begin());
-//    }
-//    else {
-//        smallest_permutation = faceTopology.lexicographical_smallest_permutation(side_node_ids);
-//        EntityVector face_nodes(faceTopology.num_nodes());
-//        Topology::face_nodes(elem_nodes, side_ordinal, face_nodes.begin());
-//        faceTopology.permutation_nodes(face_nodes, smallest_permutation, permuted_face_nodes.begin());
-//    }
-//}
-
-void find_face_nodes_for_side(BulkData& mesh, Entity element, int side_ordinal, EntityVector & permuted_face_nodes);
+bool check_permutations_on_all(stk::mesh::BulkData& mesh);
+void find_side_nodes(BulkData& mesh, Entity element, int side_ordinal, EntityVector & permuted_face_nodes);
 
 
 template<class DO_THIS_FOR_ENTITY_IN_CLOSURE, class DESIRED_ENTITY>
@@ -397,8 +351,8 @@ void get_part_ordinals_to_induce_on_lower_ranks_except_for_omits(const BulkData&
 stk::mesh::Entity get_or_create_face_at_element_side(stk::mesh::BulkData & bulk,
                                                      stk::mesh::Entity elem,
                                                      int side_ordinal,
-                                                     int new_face_global_id,
-                                                     stk::mesh::Part & part);
+                                                     stk::mesh::EntityId new_face_global_id,
+                                                     const stk::mesh::PartVector & parts = stk::mesh::PartVector());
 
 void connect_face_to_other_elements(stk::mesh::BulkData & bulk,
                                     stk::mesh::Entity face,
@@ -440,6 +394,67 @@ bool should_face_be_connected_to_element_side(std::vector<ENTITY_ID> & face_node
     }
     return should_connect;
 }
+
+struct StoreInEntityProcSet {
+    StoreInEntityProcSet(
+            BulkData & mesh_in,
+            std::set<stk::mesh::EntityProc, stk::mesh::EntityLess> & set_in)
+    :mesh(mesh_in)
+    ,myset(set_in) { }
+
+    void operator()(Entity entity) {
+      myset.insert(stk::mesh::EntityProc(entity,proc));
+    }
+
+    BulkData & mesh;
+    std::set<stk::mesh::EntityProc , stk::mesh::EntityLess> & myset;
+    int proc;
+};
+
+struct OnlyGhosts  {
+    OnlyGhosts(BulkData & mesh_in) : mesh(mesh_in) {}
+    bool operator()(Entity entity) {
+        const bool isValid = mesh.is_valid(entity);
+        const bool iDoNotOwnEntity = proc != mesh.parallel_owner_rank(entity);
+        const bool entityIsShared = mesh.in_shared( mesh.entity_key(entity) , proc );
+        return (isValid && iDoNotOwnEntity && !entityIsShared);
+    }
+    BulkData & mesh;
+    int proc;
+};
+
+void send_entity_keys_to_owners(
+  BulkData & mesh ,
+  const std::set< EntityKey > & entitiesGhostedOnThisProcThatNeedInfoFromOtherProcs ,
+        std::set< EntityProc , EntityLess > & entitiesToGhostOntoOtherProcessors );
+
+void comm_sync_send_recv(
+  BulkData & mesh ,
+  std::set< EntityProc , EntityLess > & new_send ,
+  std::set< EntityKey > & new_recv );
+
+void insert_upward_relations(const BulkData& bulk_data, Entity rel_entity,
+                             const EntityRank rank_of_orig_entity,
+                             const int my_rank,
+                             const int share_proc,
+                             std::vector<EntityProc>& send);
+
+void move_unowned_entities_for_owner_to_ghost(
+  stk::mesh::BulkData & mesh ,
+  std::set< stk::mesh::EntityProc , stk::mesh::EntityLess > & entitiesToGhostOntoOtherProcessors);
+
+struct HashValueForEntityVector
+{
+    size_t operator()(const EntityVector &vector) const
+    {
+        size_t hashValue = 0;
+        for(size_t i=0; i<vector.size(); i++)
+        {
+            hashValue += vector[i].local_offset();
+        }
+        return hashValue;
+    }
+};
 
 } // namespace impl
 } // namespace mesh

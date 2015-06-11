@@ -44,6 +44,18 @@ void ModificationSummary::track_change_ghosting(const stk::mesh::Ghosting & ghos
     }
 }
 
+void ModificationSummary::track_add_to_ghosting(const stk::mesh::Ghosting & ghosts, const std::vector<stk::mesh::EntityProc> & add_send )
+{
+    std::ostringstream os;
+
+    for(size_t i=0;i<add_send.size();++i)
+    {
+        os << "Sending ghost key " << getEntityKey(add_send[i].first) << " to processor " << add_send[i].second << " for ghosting " << ghosts.name() << std::endl;
+        addEntityKeyAndStringToTracker(getEntityKey(add_send[i].first), os.str());
+        os.str("");
+    }
+}
+
 void ModificationSummary::track_destroy_relation(stk::mesh::Entity e_from, stk::mesh::Entity e_to, stk::mesh::RelationIdentifier rel)
 {
     if(isValid(e_from) && isValid(e_to))
@@ -75,6 +87,17 @@ void ModificationSummary::track_declare_entity(stk::mesh::EntityRank rank, stk::
     addEntityKeyAndStringToTracker(key, os.str());
 }
 
+void ModificationSummary::track_set_global_id(stk::mesh::Entity entity, stk::mesh::EntityId newId)
+{
+    if (isValid(entity)) {
+        stk::mesh::EntityKey oldKey = getEntityKey(entity);
+        stk::mesh::EntityId oldId = oldKey.id();
+        std::ostringstream os;
+        os << "Changing Fmwk global id for entity " << oldKey << " from " << oldId << " to " << newId << std::endl;
+        addEntityKeyAndStringToTracker(oldKey, os.str());
+    }
+}
+
 void ModificationSummary::track_change_entity_owner(const std::vector<stk::mesh::EntityProc> &changes)
 {
     std::ostringstream os;
@@ -98,7 +121,7 @@ void ModificationSummary::track_change_entity_id(stk::mesh::EntityId newId, stk:
     if(isValid(entity))
     {
         std::ostringstream os;
-        os << "Changing id of entity key " << getEntityKey(entity) << std::endl;
+        os << "Changing id of entity key " << getEntityKey(entity) << " to " << newId << std::endl;
         addEntityKeyAndStringToTracker(getEntityKey(entity), os.str());
     }
 }
@@ -240,7 +263,7 @@ void ModificationSummary::addEntityKeyAndStringToTracker(stk::mesh::EntityKey ke
 std::string ModificationSummary::get_filename(int mod_cycle_count) const
         {
     std::ostringstream os;
-    os << "modification_cycle_" << mod_cycle_count << "_P" << my_proc_id() << ".txt";
+    os << "modification_cycle_" << &m_bulkData << "_" << mod_cycle_count << "_P" << my_proc_id() << ".txt";
     return os.str();
 }
 

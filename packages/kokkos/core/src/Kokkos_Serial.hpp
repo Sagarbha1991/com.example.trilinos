@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,8 +35,8 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions?  Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -139,6 +139,10 @@ public:
     (void) use_numa_count;
     (void) use_cores_per_numa;
     (void) allow_asynchronous_threadpool;
+
+    // Init the array of locks used for arbitrarily sized atomics
+    Impl::init_lock_array_host_space();
+
   }
 
   static int is_initialized() { return 1 ; }
@@ -147,7 +151,7 @@ public:
   static void finalize() {}
 
   //! Print configuration information to the given output stream.
-  static void print_configuration( std::ostream & , const bool detail = false );
+  static void print_configuration( std::ostream & , const bool detail = false ) {}
 
   //--------------------------------------------------------------------------
 
@@ -313,6 +317,10 @@ public:
   template< class FunctorType >
   static
   int team_size_recommended( const FunctorType & ) { return 1 ; }
+
+  template< class FunctorType >
+  static
+  int team_size_recommended( const FunctorType & , const int& ) { return 1 ; }
 
   //----------------------------------------
 
@@ -621,8 +629,6 @@ public:
 } // namespace Impl
 } // namespace Kokkos
 
-#ifdef KOKKOS_HAVE_CXX11
-
 namespace Kokkos {
 
 namespace Impl {
@@ -733,6 +739,8 @@ void parallel_reduce(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::Ser
   result = loop_boundaries.thread.team_reduce(result,Impl::JoinAdd<ValueType>());
 }
 
+#ifdef KOKKOS_HAVE_CXX11
+
 /** \brief  Intra-thread vector parallel_reduce. Executes lambda(iType i, ValueType & val) for each i=0..N-1.
  *
  * The range i=0..N-1 is mapped to all vector lanes of the the calling thread and a reduction of
@@ -755,6 +763,8 @@ void parallel_reduce(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::Ser
 
   init_result = loop_boundaries.thread.team_reduce(result,Impl::JoinLambdaAdapter<ValueType,JoinType>(join));
 }
+
+#endif // KOKKOS_HAVE_CXX11
 
 } //namespace Kokkos
 
@@ -873,7 +883,6 @@ void single(const Impl::ThreadSingleStruct<Impl::SerialTeamMember>& , const Func
   lambda(val);
 }
 }
-#endif // KOKKOS_HAVE_CXX11
 
 #endif // defined( KOKKOS_HAVE_SERIAL )
 #endif /* #define KOKKOS_SERIAL_HPP */

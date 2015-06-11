@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -372,10 +372,10 @@ public:
     , m_team_base(0)
     , m_team_shared(0,0)
     , m_team_shared_size(0)
-    , m_team_size(0)
+    , m_team_size(1)
     , m_team_rank(0)
     , m_team_rank_rev(0)
-    , m_league_size(0)
+    , m_league_size(1)
     , m_league_end(0)
     , m_league_rank(0)
     {}
@@ -466,6 +466,12 @@ public:
   static int team_size_recommended( const FunctorType & )
     { return execution_space::thread_pool_size(2); }
 
+
+  template< class FunctorType >
+  inline static
+  int team_size_recommended( const FunctorType &, const int& )
+    { return execution_space::thread_pool_size(2); }
+
   //----------------------------------------
 
   inline int team_size() const { return m_team_size ; }
@@ -493,8 +499,6 @@ public:
 
 } /* namespace Kokkos */
 
-
-#ifdef KOKKOS_HAVE_CXX11
 
 namespace Kokkos {
 
@@ -570,6 +574,8 @@ void parallel_reduce(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::Thr
   result = loop_boundaries.thread.team_reduce(result,Impl::JoinAdd<ValueType>());
 }
 
+#if defined( KOKKOS_HAVE_CXX11 )
+
 /** \brief  Intra-thread vector parallel_reduce. Executes lambda(iType i, ValueType & val) for each i=0..N-1.
  *
  * The range i=0..N-1 is mapped to all vector lanes of the the calling thread and a reduction of
@@ -592,6 +598,8 @@ void parallel_reduce(const Impl::TeamThreadRangeBoundariesStruct<iType,Impl::Thr
 
   init_result = loop_boundaries.thread.team_reduce(result,Impl::JoinLambdaAdapter<ValueType,JoinType>(join));
 }
+
+#endif /* #if defined( KOKKOS_HAVE_CXX11 ) */
 
 } //namespace Kokkos
 
@@ -714,7 +722,6 @@ void single(const Impl::ThreadSingleStruct<Impl::ThreadsExecTeamMember>& single_
   single_struct.team_member.team_broadcast(val,0);
 }
 }
-#endif // KOKKOS_HAVE_CXX11
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------

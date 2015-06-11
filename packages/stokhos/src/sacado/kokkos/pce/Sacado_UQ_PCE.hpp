@@ -50,12 +50,14 @@
 
 #include "Sacado_Traits.hpp"
 #include "Sacado_mpl_apply.hpp"
+#include "Stokhos_Is_Constant.hpp"
 
 #include "Stokhos_CrsProductTensor.hpp"
 
 #include <cmath>
 #include <algorithm>    // for std::min and std::max
 #include <ostream>      // for std::ostream
+#include <initializer_list>
 
 namespace Sacado {
 
@@ -112,10 +114,10 @@ namespace Sacado {
 
       //! Default constructor
       /*!
-       * Sets size to 1 and first coefficient to 0 (represents a constant).
+       * May not intialize the coefficient array.
        */
       KOKKOS_INLINE_FUNCTION
-      PCE() : cijk_(), s_(1) {}
+      PCE() = default;
 
       //! Constructor with supplied value \c x
       /*!
@@ -169,9 +171,16 @@ namespace Sacado {
           s_ = x.s_;
       }
 
+      //! Intialize from initializer_list
+      /*!
+       * No KOKKOS_INLINE_FUNCTION as it is not callable from the device
+       */
+      PCE(std::initializer_list<value_type> l) :
+        cijk_(), s_(l.size(), l.begin()) {}
+
       //! Destructor
       KOKKOS_INLINE_FUNCTION
-      ~PCE() {}
+      ~PCE() = default;
 
       //! Initialize coefficients to value
       KOKKOS_INLINE_FUNCTION
@@ -365,6 +374,31 @@ namespace Sacado {
         return *this;
       }
 
+      //! Assignment from initializer_list
+      /*!
+       * No KOKKOS_INLINE_FUNCTION as it is not callable from the device
+       */
+      PCE& operator=(std::initializer_list<value_type> l) {
+        const ordinal_type lsz = l.size();
+        if (lsz != s_.size())
+          s_.resize(lsz);
+        s_.init(l.begin(), lsz);
+        return *this;
+      }
+
+      //! Assignment from initializer_list
+      /*!
+       * No KOKKOS_INLINE_FUNCTION as it is not callable from the device
+       */
+      /*volatile*/ PCE&
+      operator=(std::initializer_list<value_type> l) volatile {
+        const ordinal_type lsz = l.size();
+        if (lsz != s_.size())
+          s_.resize(lsz);
+        s_.init(l.begin(), lsz);
+        return const_cast<PCE&>(*this);
+      }
+
       //@}
 
       /*!
@@ -498,6 +532,54 @@ namespace Sacado {
       Teuchos::Array<ordinal_type> order(ordinal_type term) const {
         return s_.order(term); }
       */
+
+      //! Return iterator to first element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      pointer begin() { return s_.coeff(); }
+
+      //! Return iterator to first element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_pointer begin() const { return s_.coeff(); }
+
+      //! Return iterator to first element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      volatile_pointer begin() volatile { return s_.coeff(); }
+
+      //! Return iterator to first element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_volatile_pointer begin() const volatile { return s_.coeff(); }
+
+      //! Return iterator to first element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_pointer cbegin() const { return s_.coeff(); }
+
+      //! Return iterator to first element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_volatile_pointer cbegin() const volatile { return s_.coeff(); }
+
+      //! Return iterator following last element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      pointer end() { return s_.coeff() + s_.size(); }
+
+      //! Return iterator following last element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_pointer end() const { return s_.coeff() + s_.size(); }
+
+      //! Return iterator following last element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      volatile_pointer end() volatile { return s_.coeff() + s_.size(); }
+
+      //! Return iterator following last element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_volatile_pointer end() const volatile { return s_.coeff() + s_.size(); }
+
+      //! Return iterator following last element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_pointer cend() const { return s_.coeff()+ s_.size(); }
+
+      //! Return iterator following last element of coefficient array
+      KOKKOS_INLINE_FUNCTION
+      const_volatile_pointer cend() const volatile { return s_.coeff()+ s_.size(); }
 
       //@}
 
@@ -857,6 +939,11 @@ namespace Sacado {
     template <typename Storage>
     KOKKOS_INLINE_FUNCTION
     PCE<Storage>
+    cbrt(const PCE<Storage>& a);
+
+    template <typename Storage>
+    KOKKOS_INLINE_FUNCTION
+    PCE<Storage>
     pow(const PCE<Storage>& a, const PCE<Storage>& b);
 
     template <typename Storage>
@@ -1165,6 +1252,13 @@ namespace Sacado {
 //  return c;
    }
 */
+
+    template <typename S>
+    void memcpy(PCE<S>* dst, const PCE<S>* src, const size_t sz) {
+      const size_t n = sz / sizeof(PCE<S>);
+      for (size_t i=0; i<n; ++i)
+        dst[i] = src[i];
+    }
 
   } // namespace PCE
 

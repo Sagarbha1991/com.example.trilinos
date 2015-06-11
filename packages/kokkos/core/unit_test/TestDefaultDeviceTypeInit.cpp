@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -191,6 +191,11 @@ namespace Impl {
           expected_nthreads = 1;
 
       }
+      #ifdef KOKKOS_HAVE_SERIAL
+      if(Kokkos::Impl::is_same<Kokkos::DefaultExecutionSpace,Kokkos::Serial>::value ||
+         Kokkos::Impl::is_same<Kokkos::DefaultHostExecutionSpace,Kokkos::Serial>::value ) 
+        expected_nthreads = 1;
+      #endif
     }
 
     int expected_numa = argstruct.num_numa;
@@ -200,6 +205,11 @@ namespace Impl {
       } else {
         expected_numa = 1;
       }
+      #ifdef KOKKOS_HAVE_SERIAL
+      if(Kokkos::Impl::is_same<Kokkos::DefaultExecutionSpace,Kokkos::Serial>::value ||
+         Kokkos::Impl::is_same<Kokkos::DefaultHostExecutionSpace,Kokkos::Serial>::value )
+        expected_numa = 1;
+      #endif
     }
     ASSERT_EQ(Kokkos::HostSpace::execution_space::thread_pool_size(),expected_nthreads);
 

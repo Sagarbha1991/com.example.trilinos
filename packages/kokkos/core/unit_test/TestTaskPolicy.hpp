@@ -2,8 +2,8 @@
 //@HEADER
 // ************************************************************************
 // 
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
 // 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -35,7 +35,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov) 
+// Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
 // 
 // ************************************************************************
 //@HEADER
@@ -196,7 +196,7 @@ void test_fib( long n )
 
   Kokkos::Experimental::Future<long,ExecSpace> f = Kokkos::Experimental::spawn( policy , FibChild<ExecSpace>(policy,n) );
 
-  Kokkos::Experimental::wait( f );
+  Kokkos::Experimental::wait( policy );
 
   if ( f.get() != eval_fib(n) ) {
     std::cout << "Fib(" << n << ") = " << f.get();
@@ -212,7 +212,7 @@ void test_fib2( long n )
 
   Kokkos::Experimental::Future<long,ExecSpace> f = Kokkos::Experimental::spawn( policy , FibChild2<ExecSpace>(policy,n) );
 
-  Kokkos::Experimental::wait( f );
+  Kokkos::Experimental::wait( policy );
 
   if ( f.get() != eval_fib(n) ) {
     std::cout << "Fib2(" << n << ") = " << f.get();
@@ -254,7 +254,7 @@ void test_norm2( const int n )
 
   Kokkos::Experimental::Future<double,ExecSpace> f = Kokkos::Experimental::spawn_reduce( policy , r , Norm2<ExecSpace>(x) );
 
-  Kokkos::Experimental::wait( f );
+  Kokkos::Experimental::wait( policy );
 
 #if defined(PRINT)
   std::cout << "Norm2: " << f.get() << std::endl ;
@@ -325,9 +325,10 @@ void test_task_dep( const int n )
 
   const int answer = n % 2 ? n * ( ( n + 1 ) / 2 ) : ( n / 2 ) * ( n + 1 );
 
+  Kokkos::Experimental::wait( policy );
+
   int error = 0 ;
   for ( int i = 0 ; i < NTEST ; ++i ) {
-    Kokkos::Experimental::wait( f[i] );
     if ( f[i].get_task_state() != Kokkos::Experimental::TASK_STATE_COMPLETE ) {
       Kokkos::Impl::throw_runtime_exception("get_task_state() != Kokkos::Experimental::TASK_STATE_COMPLETE");
     }

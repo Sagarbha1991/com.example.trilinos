@@ -44,18 +44,15 @@
 #define KOKKOS_CRSMATRIX_H_
 
 /// \file Kokkos_CrsMatrix.hpp
-/// \brief Kokkos' sparse matrix interface
+/// \brief Local sparse matrix interface
+/// \warning Do NOT include this file.  This file is DEPRECATED!!!
+///   Include Kokkos_Sparse_CrsMatrix.hpp instead.
 
-// FIXME (mfh 29 Sep 2013) There should never be a reason for using
-// assert() in these routines.  Routines that _could_ fail should
-// either return an error code (if they are device functions) or throw
-// an exception (if they are not device functions).
-#include <assert.h>
 #include <algorithm>
 
 #include <Kokkos_Core.hpp>
+#include <Kokkos_ArithTraits.hpp>
 #include <Kokkos_StaticCrsGraph.hpp>
-#include <Kokkos_MV.hpp>
 
 #ifdef KOKKOS_USE_CUSPARSE
 #  include <cusparse.h>
@@ -70,9 +67,16 @@
 
 //#include <Kokkos_Vectorization.hpp>
 #include <impl/Kokkos_Error.hpp>
-
+#include <Kokkos_Sparse_CrsMatrix.hpp>
 namespace Kokkos {
+#if true
+  using KokkosSparse::CrsMatrix;
+  using KokkosSparse::RowsPerThread;
+  using KokkosSparse::SparseRowView;
+  using KokkosSparse::SparseRowViewConst;
+  using KokkosSparse::DeviceConfig;
 
+#else
 /// \class SparseRowView
 /// \brief View of a row of a sparse matrix.
 /// \tparam MatrixType Sparse matrix type, such as (but not limited to) CrsMatrix.
@@ -737,7 +741,7 @@ inline int RowsPerThread<Kokkos::Cuda>(const int NNZPerRow) {
   return 1;
 }
 #endif
-
+#endif
 //----------------------------------------------------------------------------
 
 template<class DeviceType, typename ScalarType, int NNZPerRow=27>
@@ -859,7 +863,7 @@ struct MV_MultiplyFunctor {
       sum[k] = 0;
     }
 
-    const SparseRowView<CrsMatrix> row = m_A.row(iRow);
+    const SparseRowViewConst<CrsMatrix> row = m_A.template rowConst<typename CrsMatrix::size_type>(iRow);
 
     // NOTE (mfh 20 Mar 2015) Unfortunately, Kokkos::Vectorization
     // lacks a typedef for determining the type of the return value of
@@ -1003,7 +1007,7 @@ struct MV_MultiplyFunctor {
   {
     value_type sum = 0;
 
-    const SparseRowViewConst<CrsMatrix> row = m_A.rowConst(iRow);
+    const SparseRowViewConst<CrsMatrix> row = m_A.template rowConst<typename CrsMatrix::size_type>(iRow);
 
     // NOTE (mfh 20 Mar 2015) Unfortunately, Kokkos::Vectorization
     // lacks a typedef for determining the type of the return value of
@@ -1229,10 +1233,12 @@ struct MV_MultiplyFunctor {
     KOKKOS_INLINE_FUNCTION void
     operator() (const team_member& dev) const
     {
-      // This should be a thread loop as soon as we can use C++11
-      // FIXME (mfh 20 Mar 2015) The correct type of 'loop' should be
-      // ordinal_type, not int.  Ditto for rows_per_thread.
-      for (int loop = 0; loop < rows_per_thread; ++loop) {
+      // This should be a thread loop as soon as we can use C++11.
+      //
+      // FIXME (mfh 20 Mar 2015, 11 Apr 2015) The correct type of
+      // 'loop' should be ordinal_type, not int.  Ditto for
+      // rows_per_thread.  The cast avoids a build warning.
+      for (int loop = 0; loop < static_cast<int> (rows_per_thread); ++loop) {
         // NOTE (mfh 20 Mar 2015) Unfortunately, Kokkos::Vectorization
         // lacks a typedef for determining the type of the return
         // value of global_thread_rank().  I know that it returns int
@@ -1245,7 +1251,7 @@ struct MV_MultiplyFunctor {
         if (iRow >= m_A.numRows ()) {
           return;
         }
-        const SparseRowViewConst<CrsMatrix> row = m_A.rowConst(iRow);
+        const SparseRowViewConst<CrsMatrix> row = m_A.template rowConst<typename CrsMatrix::size_type>(iRow);
         const ordinal_type row_length = static_cast<ordinal_type> (row.length);
         value_type sum = 0;
 
@@ -1423,7 +1429,7 @@ struct MV_MultiplyFunctor {
 
       const ordinal_type iRow = i / ShflThreadsPerRow::device_value;
       const int lane = static_cast<int> (i) % ShflThreadsPerRow::device_value;
-      const SparseRowViewConst<CrsMatrix> row = m_A.rowConst(iRow);
+      const SparseRowViewConst<CrsMatrix> row = m_A.template rowConst<typename CrsMatrix::size_type>(iRow);
 
       for (ordinal_type iEntry = static_cast<ordinal_type> (lane);
            iEntry < static_cast<ordinal_type> (row.length);
@@ -1483,7 +1489,7 @@ struct MV_MultiplyFunctor {
 
       const ordinal_type iRow = i / ShflThreadsPerRow::device_value;
       const int lane = static_cast<int> (i) % ShflThreadsPerRow::device_value;
-      const SparseRowViewConst<CrsMatrix> row = m_A.rowConst(iRow);
+      const SparseRowViewConst<CrsMatrix> row = m_A.template rowConst<typename CrsMatrix::size_type>(iRow);
 
       for (ordinal_type iEntry = static_cast<ordinal_type> (lane);
            iEntry < static_cast<ordinal_type> (row.length);
@@ -1952,15 +1958,16 @@ MV_MultiplyTranspose (typename RangeVector::const_value_type s_b,
                         typename TCrsMatrix::memory_traits,
                         typename TCrsMatrix::size_type>
       CrsMatrixType;
+      typedef typename CrsMatrixType::size_type size_type;
 
       Impl::MV_Multiply_Check_Compatibility(betav,y,alphav,A,x,doalpha,dobeta);
 
       // NNZPerRow could be anywhere from 0, to A.numRows()*A.numCols().
       // Thus, the appropriate type is size_type.
-      const typename CrsMatrixType::size_type NNZPerRow = A.nnz () / A.numRows ();
+      const size_type NNZPerRow = A.nnz () / A.numRows ();
 
       int vector_length = 1;
-      while( (vector_length*2*3 <= NNZPerRow) && (vector_length<32) ) vector_length*=2;
+      while( (static_cast<size_type> (vector_length*2*3) <= NNZPerRow) && (vector_length<32) ) vector_length*=2;
 
 #ifndef KOKKOS_FAST_COMPILE // This uses templated fucntions on doalpha and dobeta and will produce 16 kernels
 
@@ -1971,9 +1978,12 @@ MV_MultiplyTranspose (typename RangeVector::const_value_type s_b,
 
       OpType op(betav,alphav,A,x,y,RowsPerThread<typename RangeVector::execution_space >(NNZPerRow)) ;
 
+      const int rows_per_thread = RowsPerThread<typename RangeVector::execution_space >(NNZPerRow);
+      const int team_size = Kokkos::TeamPolicy< typename RangeVector::execution_space >::team_size_recommended(op,vector_length);
+      const int rows_per_team = rows_per_thread * team_size;
+      const int nteams = (nrow+rows_per_team-1)/rows_per_team;
       Kokkos::parallel_for( Kokkos::TeamPolicy< typename RangeVector::execution_space >
-         ( nrow ,RowsPerThread<typename RangeVector::execution_space >(NNZPerRow), vector_length ) , op );
-
+         ( nteams , team_size , vector_length ) , op );
 #else // NOT KOKKOS_FAST_COMPILE
 
       typedef MV_MultiplySingleFunctor<RangeVectorType, CrsMatrixType, DomainVectorType,
@@ -2007,13 +2017,16 @@ MV_MultiplyTranspose (typename RangeVector::const_value_type s_b,
       const typename CrsMatrixType::ordinal_type nrow = A.numRows();
 
       OpType op(beta,alpha,A,x,y,RowsPerThread<typename RangeVector::execution_space >(NNZPerRow)) ;
+      const int team_size = Kokkos::TeamPolicy< typename RangeVector::execution_space >::team_size_recommended(op,vector_length);
+      const int rows_per_team = rows_per_thread * team_size;
+      const int nteams = (nrow+rows_per_team-1)/rows_per_team;
       Kokkos::parallel_for( Kokkos::TeamPolicy< typename RangeVector::execution_space >
-           ( nrow ,RowsPerThread<typename RangeVector::execution_space >(NNZPerRow), vec_tor_length ) , op );
+         ( nteams , team_size , vector_length ) , op );
 
 #endif // KOKKOS_FAST_COMPILE
     }
   }
-
+/*
 template <class RangeVector,
             class TCrsMatrix,
             class DomainVector,
@@ -2093,8 +2106,14 @@ template <class RangeVector,
           CoeffVector1Type, CoeffVector2Type, doalpha, dobeta> OpType ;
 
         OpType op(betav,alphav,A,x,y,x.dimension_1(),RowsPerThread<typename RangeVector::execution_space >(NNZPerRow)) ;
+
+        const int rows_per_thread = RowsPerThread<typename RangeVector::execution_space >(NNZPerRow);
+        const int team_size = Kokkos::TeamPolicy< typename RangeVector::execution_space >::team_size_recommended(op,vector_length);
+        const int rows_per_team = rows_per_thread * team_size;
+        const int nteams = (A.numRows()+rows_per_team-1)/rows_per_team;
+
         Kokkos::parallel_for( Kokkos::TeamPolicy< typename RangeVector::execution_space >
-             ( A.numRows() ,RowsPerThread<typename RangeVector::execution_space >(NNZPerRow), vector_length ) , op );
+                              ( nteams, team_size, vector_length ) , op );
 
       }
 
@@ -2135,8 +2154,12 @@ template <class RangeVector,
       const typename CrsMatrixType::ordinal_type nrow = A.numRows();
 
       OpType op(betav,alphav,A,x,y,x.dimension_1(),RowsPerThread<typename RangeVector::execution_space >(NNZPerRow)) ;
+      const int rows_per_thread = RowsPerThread<typename RangeVector::execution_space >(NNZPerRow);
+      const int team_size = Kokkos::TeamPolicy< typename RangeVector::execution_space >::team_size_recommended(op,vector_length);
+      const int rows_per_team = rows_per_thread * team_size;
+      const int nteams = (A.numRows()+rows_per_team-1)/rows_per_team;
       Kokkos::parallel_for( Kokkos::TeamPolicy< typename RangeVector::execution_space >
-           ( A.numRows() ,RowsPerThread<typename RangeVector::execution_space >(NNZPerRow), vector_length ) , op );
+                            ( nteams , team_size , vector_length ) , op );
 
 #endif // KOKKOS_FAST_COMPILE
     }
@@ -2431,7 +2454,7 @@ template <class RangeVector,
       // Deep_copy in Kokkos is intended for copy between compatible objects.
     }
   } // namespace KokkosCrsMatrix
-
+*/
 } // namespace Kokkos
 
 #endif /* KOKKOS_CRSMATRIX_H_ */

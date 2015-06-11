@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -150,7 +150,6 @@ public:
   void exec_all_reduce( const FunctorType & func ) const
     {
       typedef Kokkos::Impl::FunctorValueJoin< FunctorType , ArgTag > ValueJoin ;
-      typedef Kokkos::Impl::FunctorValueOps<  FunctorType , ArgTag > ValueOps ;
 
       const int rev_rank = m_worker_size - ( m_worker_rank + 1 );
 
@@ -229,6 +228,19 @@ public:
   inline
   volatile Type * shepherd_team_scratch_value() const
     { return (volatile Type*)(((unsigned char *) m_scratch_alloc) + m_reduce_end); }
+
+  template< class Type >
+  inline
+  void shepherd_broadcast( Type & value , const int team_size , const int team_rank ) const
+    {
+      if ( m_shepherd_base ) {
+        Type * const shared_value = m_shepherd_base[0]->shepherd_team_scratch_value<Type>();
+        if ( m_shepherd_worker_rank == team_rank ) { *shared_value = value ; }
+        memory_fence();
+        shepherd_barrier( team_size );
+        value = *shared_value ;
+      }
+    }
 
   template< class Type >
   inline
@@ -394,6 +406,8 @@ public:
   inline int shepherd_worker_size() const { return m_shepherd_worker_size ; }
   inline int shepherd_rank() const { return m_shepherd_rank ; }
   inline int shepherd_size() const { return m_shepherd_size ; }
+
+  static int worker_per_shepherd();
 };
 
 } /* namespace Impl */
@@ -434,6 +448,14 @@ public:
     {}
 #else
     { m_exec.shepherd_barrier( m_team_size ); }
+#endif
+
+  template< typename Type >
+  KOKKOS_INLINE_FUNCTION Type team_broadcast( const Type & value , int rank ) const
+#if ! defined( KOKKOS_ACTIVE_EXECUTION_MEMORY_SPACE_HOST )
+    { return Type(); }
+#else
+    { return m_exec.template shepherd_broadcast<Type>( value , m_team_size , rank ); }
 #endif
 
   template< typename Type >
@@ -483,6 +505,11 @@ public:
 #else
     { return m_exec.template shepherd_scan<Type>( m_team_size , value , global_accum ); }
 #endif
+
+  //----------------------------------------
+  // Private driver for task-team parallel
+
+  QthreadTeamPolicyMember();
 
   //----------------------------------------
   // Private for the driver ( for ( member_type i(exec,team); i ; i.next_team() ) { ... }
@@ -538,6 +565,11 @@ public:
 
   template< class FunctorType >
   static int team_size_recommended( const FunctorType & f )
+    { return team_size_max( f ); }
+
+  template< class FunctorType >
+  inline static
+  int team_size_recommended( const FunctorType & f , const int& )
     { return team_size_max( f ); }
 
   //----------------------------------------

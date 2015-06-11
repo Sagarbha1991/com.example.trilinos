@@ -34,7 +34,6 @@
 #include <stk_mesh/base/MetaData.hpp>
 #include <string.h>                     // for strcmp, strncmp
 #include <Shards_CellTopologyManagedData.hpp>
-#include <boost/foreach.hpp>            // for auto_any_base, etc
 #include <iostream>                     // for operator<<, basic_ostream, etc
 #include <sstream>
 #include <set>                          // for set
@@ -132,7 +131,7 @@ void MetaData::assign_cell_topology(
 
   stk::topology topo = stk::mesh::get_topology(cell_topology, m_spatial_dimension);
 
-  m_part_repo.get_all_parts()[part_ordinal]->m_partImpl.set_topology(topo);
+  part.m_partImpl.set_topology(topo);
 
   ThrowRequireMsg(cell_topology.getCellTopologyData(), "bad topology in MetaData::assign_cell_topology");
 }
@@ -1173,26 +1172,28 @@ FieldBase* get_field_by_name( const std::string& name, const MetaData & metaData
 
 void MetaData::dump_all_meta_info(std::ostream& out) const
 {
-  out << "MetaData info...\n";
+  out << "MetaData info...(ptr=" << this << ")\n";
+
+  out << "spatial dimension = " << m_spatial_dimension << "\n";
 
   out << "  Entity rank names:\n";
   for (size_t i = 0, e = m_entity_rank_names.size(); i != e; ++i) {
-    out << "    " << i << ": " << m_entity_rank_names[i] << std::endl;
+    out << "    " << i << ": " << m_entity_rank_names[i] << "\n";
   }
   out << "  Special Parts:\n";
-  out << "    Universal part ord = " << m_universal_part->mesh_meta_data_ordinal() << std::endl;
-  out << "    Owns part ord = " << m_owns_part->mesh_meta_data_ordinal() << std::endl;
-  out << "    Shared part ord = " << m_shares_part->mesh_meta_data_ordinal() << std::endl;
+  out << "    Universal part ord = " << m_universal_part->mesh_meta_data_ordinal() << "\n";
+  out << "    Owns part ord = " << m_owns_part->mesh_meta_data_ordinal() << "\n";
+  out << "    Shared part ord = " << m_shares_part->mesh_meta_data_ordinal() << "\n";
 
   out << "  All parts:\n";
   const PartVector& all_parts = m_part_repo.get_all_parts();
-  BOOST_FOREACH(const Part* part, all_parts) {
+  for(const Part* part : all_parts) {
     print(out, "    ", *part);
   }
 
   out << "  All fields:\n";
   const FieldVector& all_fields = m_field_repo.get_fields();
-  BOOST_FOREACH(const FieldBase* field, all_fields) {
+  for(const FieldBase* field : all_fields) {
      print(out, "    ", *field);
   }
 }

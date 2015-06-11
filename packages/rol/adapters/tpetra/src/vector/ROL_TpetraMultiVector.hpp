@@ -50,7 +50,7 @@
 */
 
 #include "ROL_Vector.hpp"
-#include "Tpetra_MultiVector.hpp"
+#include "Tpetra_MultiVector_def.hpp"
 
 namespace ROL {
 
@@ -71,6 +71,13 @@ class TpetraMultiVector : public Vector<Real> {
         virtual ~TpetraMultiVector() {}
 
         TpetraMultiVector(const MVP &tpetra_vec) : tpetra_vec_(tpetra_vec) {}
+       
+        /** \brief Assign \f$y \leftarrow x \f$ where \f$y = \mbox{*this}\f$.
+        */
+        void set(const Vector<Real> &x) {
+            const TMV &ex = Teuchos::dyn_cast<const TMV>(x);
+            tpetra_vec_->assign(*ex.getVector()); 
+        }
        
         /** \brief Compute \f$y \leftarrow x + y\f$ where \f$y = \mbox{*this}\f$.
         */
@@ -101,6 +108,7 @@ class TpetraMultiVector : public Vector<Real> {
             Real v; // Need this to make a 1-element ArrayView
             Teuchos::ArrayView<Real> val(&v,1);
             tpetra_vec_->norm2(val);
+            //return val[0]/std::sqrt(tpetra_vec_->getMap()->getComm()->getSize());
             return val[0];
         } 
 
@@ -112,24 +120,10 @@ class TpetraMultiVector : public Vector<Real> {
             return rcp( new TMV(rcp( new MV(tpetra_vec_->getMap(),n,false)) ));
         }
 
-        /** \brief Compute \f$y \leftarrow \alpha x + y\f$ where \f$y = \mbox{*this}\f$.
-        */
-        virtual void axpy( const Real alpha, const Vector<Real> &x ) {
-            const TMV &ex = Teuchos::dyn_cast<const TMV>(x);
-            tpetra_vec_->update( alpha, *ex.getVector(), 1.0 );
-        }
-
         /**  \brief Set to zero vector.
         */
         virtual void zero() {
             tpetra_vec_->putScalar(0.0);
-        }
-
-        /**  \brief Set \f$y \leftarrow x\f$ where \f$y = \mbox{*this}\f$.
-        */
-        virtual void set( const Vector<Real> &x ) {
-            const TMV &ex = Teuchos::dyn_cast<const TMV>(x);
-            tpetra_vec_->scale(1.0,*ex.getVector());
         }
 
         CMVP getVector() const {
@@ -141,13 +135,20 @@ class TpetraMultiVector : public Vector<Real> {
         }
 
         Teuchos::RCP<Vector<Real> > basis( const int i ) const {
+            using Teuchos::RCP; 
             using Teuchos::rcp; 
-            size_t n = tpetra_vec_->getNumVectors();  
-             
-            MVP e = rcp( new MV(tpetra_vec_->getMap(),n,true) );  
+            typedef typename MV::map_type map_type;
 
-            e->replaceLocalValue(i,0,1.0);
+            const size_t n = tpetra_vec_->getNumVectors();  
+          
+            RCP<const map_type> map = tpetra_vec_->getMap ();
+            MVP e = rcp (new MV (map,n));  
 
+            if (! map.is_null () && map->isNodeGlobalElement (static_cast<GO> (i))) {
+              for (size_t j = 0; j < n; ++j) {
+                e->replaceGlobalValue (i, j, Teuchos::ScalarTraits<Real>::one ());
+              }
+            }
             return rcp(new TMV(e) );  
         }
 

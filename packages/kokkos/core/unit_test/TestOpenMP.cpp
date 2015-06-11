@@ -1,13 +1,13 @@
 /*
 //@HEADER
 // ************************************************************************
-//
-//   Kokkos: Manycore Performance-Portable Multidimensional Arrays
-//              Copyright (2012) Sandia Corporation
-//
+// 
+//                        Kokkos v. 2.0
+//              Copyright (2014) Sandia Corporation
+// 
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
-//
+// 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Questions? Contact  H. Carter Edwards (hcedwar@sandia.gov)
-//
+// 
 // ************************************************************************
 //@HEADER
 */
@@ -87,7 +87,7 @@ protected:
   {
     Kokkos::OpenMP::finalize();
 
-    omp_set_num_threads(0);
+    omp_set_num_threads(1);
 
     ASSERT_EQ( 1 , omp_get_max_threads() );
   }
@@ -102,6 +102,22 @@ TEST_F( openmp, view_api) {
   TestViewAPI< double , Kokkos::OpenMP >();
 }
 
+
+TEST_F( openmp, view_subview_auto_1d_left ) {
+  TestViewSubview::test_auto_1d< Kokkos::LayoutLeft,Kokkos::OpenMP >();
+}
+
+TEST_F( openmp, view_subview_auto_1d_right ) {
+  TestViewSubview::test_auto_1d< Kokkos::LayoutRight,Kokkos::OpenMP >();
+}
+
+TEST_F( openmp, view_subview_auto_1d_stride ) {
+  TestViewSubview::test_auto_1d< Kokkos::LayoutStride,Kokkos::OpenMP >();
+}
+
+TEST_F( openmp, view_subview_assign_strided ) {
+  TestViewSubview::test_1d_strided_assignment< Kokkos::OpenMP >();
+}
 
 TEST_F( openmp, view_subview_left_0 ) {
   TestViewSubview::test_left_0< Kokkos::OpenMP >();
@@ -211,7 +227,7 @@ TEST_F( openmp , atomics )
   ASSERT_TRUE( ( TestAtomic::Loop<float,Kokkos::OpenMP>(100,2) ) );
   ASSERT_TRUE( ( TestAtomic::Loop<float,Kokkos::OpenMP>(100,3) ) );
 
-#if defined( KOKKOS_HAVE_CXX11 )
+#if defined( KOKKOS_ENABLE_ASM )
   ASSERT_TRUE( ( TestAtomic::Loop<Kokkos::complex<double> ,Kokkos::OpenMP>(100,1) ) );
   ASSERT_TRUE( ( TestAtomic::Loop<Kokkos::complex<double> ,Kokkos::OpenMP>(100,2) ) );
   ASSERT_TRUE( ( TestAtomic::Loop<Kokkos::complex<double> ,Kokkos::OpenMP>(100,3) ) );

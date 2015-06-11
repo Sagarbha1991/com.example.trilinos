@@ -15,56 +15,67 @@ namespace Example {
 
     // data-parallel interface
     // =======================
-    template<typename ScalarType,
-             typename CrsExecViewType,
-             typename ParallelForType>
+    template<typename ParallelForType,
+             typename ScalarType,
+             typename ExecViewTypeA,
+             typename ExecViewTypeB,
+             typename ExecViewTypeC>
     KOKKOS_INLINE_FUNCTION
-    static int invoke(const typename CrsExecViewType::policy_type::member_type &member,
+    static int invoke(typename ExecViewTypeA::policy_type &policy,
+                      const typename ExecViewTypeA::policy_type::member_type &member,
                       const ScalarType alpha,
-                      const CrsExecViewType &A,
-                      const CrsExecViewType &B,
+                      ExecViewTypeA &A,
+                      ExecViewTypeB &B,
                       const ScalarType beta,
-                      const CrsExecViewType &C);
+                      ExecViewTypeC &C);
 
     // task-data parallel interface
     // ============================
-    template<typename ScalarType,
-             typename CrsExecViewType,
-             typename ParallelForType>
+    template<typename ParallelForType,
+             typename ScalarType,
+             typename ExecViewTypeA,
+             typename ExecViewTypeB,
+             typename ExecViewTypeC>
     class TaskFunctor {
-    private:
-      ScalarType _alpha, _beta;
-      CrsExecViewType _A, _B, _C;
-
     public:
-      typedef typename CrsExecViewType::policy_type policy_type;
+      typedef typename ExecViewTypeA::policy_type policy_type;
       typedef typename policy_type::member_type member_type;
       typedef int value_type;
 
+    private:
+      ScalarType _alpha, _beta;
+      ExecViewTypeA _A;
+      ExecViewTypeB _B;
+      ExecViewTypeC _C;
+
+      policy_type &_policy;
+
+    public:
       TaskFunctor(const ScalarType alpha,
-                  const CrsExecViewType A,
-                  const CrsExecViewType B,
+                  const ExecViewTypeA A,
+                  const ExecViewTypeB B,
                   const ScalarType beta,
-                  const CrsExecViewType C)
+                  const ExecViewTypeC C)
         : _alpha(alpha),
           _beta(beta),
           _A(A),
           _B(B),
-          _C(C)
+          _C(C),
+          _policy(ExecViewTypeA::task_factory_type::Policy())
       { }
 
       string Label() const { return "Gemm"; }
 
       // task execution
       void apply(value_type &r_val) {
-        r_val = Gemm::invoke<ScalarType,CrsExecViewType,ParallelForType>(policy_type::member_null(),
-                                                                         _alpha, _A, _B, _beta, _C);
+        r_val = Gemm::invoke<ParallelForType>(_policy, _policy.member_single(), 
+                                              _alpha, _A, _B, _beta, _C);
       }
 
       // task-data execution
       void apply(const member_type &member, value_type &r_val) {
-        r_val = Gemm::invoke<ScalarType,CrsExecViewType,ParallelForType>(member,
-                                                                         _alpha, _A, _B, _beta, _C);
+        r_val = Gemm::invoke<ParallelForType>(_policy, member, 
+                                              _alpha, _A, _B, _beta, _C);
       }
 
     };
@@ -74,7 +85,7 @@ namespace Example {
 }
 
 
-// #include "gemm_nt_t.hpp"
-#include "gemm_t_nt.hpp"
+#include "gemm_nt_nt.hpp"
+#include "gemm_ct_nt.hpp"
 
 #endif
